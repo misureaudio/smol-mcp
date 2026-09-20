@@ -1,0 +1,17 @@
+mcp==2.0.0
+smolagents>=1.26,<2
+# PDF / docs
+PyMuPDF>=1.24
+pymupdf4llm
+Pillow
+pdf2image
+pytesseract
+md2pdf
+# data / numerics
+numpy
+mpmath
+# search
+httpx
+# LCS
+nltk
+spacy
