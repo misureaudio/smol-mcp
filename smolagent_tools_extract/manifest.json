@@ -1,0 +1,1961 @@
+[
+  {
+    "class": "SafeOpenTool",
+    "name_attr": "safe_open_tool",
+    "line_start": 551,
+    "line_end": 601,
+    "n_lines": 51,
+    "bases": [
+      "Tool"
+    ],
+    "description": "This is a tool that opens a file replacing open().\n                     It enforces security by forcing file access to occur strictly within the designated safe directory.\n                     Any directory paths provided in 'file_name' will be stripped.",
+    "output_type": "object",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "file_name",
+        "type": "string",
+        "desc": "The name of the file to be opened. directory components are ignored; the file is looked up in the safe directory."
+      },
+      {
+        "name": "mode",
+        "type": "string",
+        "desc": "'rt' for text files, 'rb' for binary files (pdf, docx...)"
+      }
+    ],
+    "forward": {
+      "start": 575,
+      "end": 601,
+      "first_line": "def forward(self, file_name, mode): # 1. Sanitize: Ignore whatever path the agent provided and force usage of basename # Example: 'uploads/run1.csv' -> 'run1.csv' # Example: 'C:/Windows/System32/run1.csv' -> 'run1.csv' clean_name = os.path.basename(file_name) # 2. Construct the forced path inside the safe directory file_path = os.path.join(self.safe_dir, clean_name) abs_file_path = [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\SafeOpenTool.py"
+  },
+  {
+    "class": "AudioHandlerTool",
+    "name_attr": "audio_handler_tool",
+    "line_start": 606,
+    "line_end": 751,
+    "n_lines": 146,
+    "bases": [
+      "Tool"
+    ],
+    "description": "This tool loads and saves .wav or .flac audio files within designated secure directories.\n\n    Operations:\n    - 'read': Returns a dictionary containing 'audio_samples' (as a numpy array) and 'metadata'.\n      Reads strictly from the READ directory.\n    - 'write': Saves a numpy array of audio samples to a file with specific quantization.\n      Writes strictly to the WRITE directory.\n\n    IMPORTANT: The 'read' output contains raw massive arrays. NEVER try to print the return value\n    of this tool as an agent action or in the final answer. Always assign it to a variable.",
+    "output_type": "any",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "file_name",
+        "type": "string",
+        "desc": "The name of the file (wav/flac). Directory components are stripped."
+      },
+      {
+        "name": "action",
+        "type": "string",
+        "desc": "Either 'read' or 'write'."
+      },
+      {
+        "name": "audio_data",
+        "type": "any",
+        "desc": "For 'write' mode only. A numpy array containing the audio samples."
+      },
+      {
+        "name": "sample_rate",
+        "type": "integer",
+        "desc": "For 'write' mode only. The sampling rate of the audio."
+      },
+      {
+        "name": "quantization",
+        "type": "integer",
+        "desc": "Bit depth for saving files. Allowed: [16, 24, 32] for .wav, [16, 24] for .flac."
+      }
+    ],
+    "forward": {
+      "start": 672,
+      "end": 751,
+      "first_line": "def forward(self, file_name, action, audio_data=None, sample_rate=None, quantization=None): # 1. Sanitize clean_name = os.path.basename(file_name) # Validate extension upfront _, ext = os.path.splitext(clean_name) ext = ext.lower() if ext not in ['.wav', '.flac']: raise ValueError(f\"Unsupported file format '{ext}'. Only .wav and .flac are allowed.\") # --- FIX 2: Compute paths only for the [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\AudioHandlerTool.py"
+  },
+  {
+    "class": "TFDTool",
+    "name_attr": "time_frequency_distribution_tool",
+    "line_start": 866,
+    "line_end": 1141,
+    "n_lines": 276,
+    "bases": [
+      "Tool"
+    ],
+    "description": "\n    Computes Time-Frequency Distributions (Cohen's Class) or Time-Scale Distributions (Affine Class).\n\n    Supported Methods:\n    - 'wvd': Wigner-Ville (Standard, high resolution)\n    - 'choi_williams': Reduces interference (good for speech/bio)\n    - 'rihaczek': Complex energy distribution\n    - 'born_jordan': Preserves time support\n    - 'zam': Cone-shaped kernel (ZAM), good for non-stationary\n    - 'bertrand': Unitary Affine (Hyperbolic chirps)\n    - 'unterberger': Active Wideband\n    - 'affine': Scalogram analysis (Wavelet-like)\n\n    Input: Requires the dictionary output from AudioHandlerTool.\n    Output: Generates an ACTIVE Matplotlib figure. Returns a recommendation to use 'save_plot' or the raw data for advanced post-processing.\n    ",
+    "output_type": "any",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "audio_dict",
+        "type": "any",
+        "desc": "The dictionary returned by AudioHandlerTool (must contain 'audio_samples' and 'metadata')."
+      },
+      {
+        "name": "method",
+        "type": "string",
+        "desc": "Method: 'wvd', 'choi_williams', 'rihaczek', 'born_jordan', 'zam', 'bertrand', 'unterberger', 'affine'."
+      },
+      {
+        "name": "channel",
+        "type": "integer",
+        "desc": "Channel index to analyze if audio is multi-channel. Default 0."
+      },
+      {
+        "name": "param",
+        "type": "number",
+        "desc": "Kernel parameter (Sigma for Choi-Williams, Alpha for Bertrand/ZAM). Default varies by method."
+      },
+      {
+        "name": "start_sample",
+        "type": "integer",
+        "desc": "The starting sample index for the analysis window. Default is 0."
+      },
+      {
+        "name": "end_sample",
+        "type": "integer",
+        "desc": "The ending sample index for the analysis window. If None, uses the end of the signal."
+      },
+      {
+        "name": "force_computation",
+        "type": "boolean",
+        "desc": "If True, overrides the O(N^2) complexity safety check for long signals (>3000 samples). Default is False."
+      },
+      {
+        "name": "return_data",
+        "type": "boolean",
+        "desc": "If True, returns a dictionary with raw matrix and axes instead of saving a plot. Default False."
+      }
+    ],
+    "forward": {
+      "start": 1009,
+      "end": 1141,
+      "first_line": "def forward(self, audio_dict, method, channel=0, param=None, start_sample=0, end_sample=None, force_computation=False, return_data=False): try: # 1. Validation if not isinstance(audio_dict, dict) or 'audio_samples' not in audio_dict or 'metadata' not in audio_dict: return \"Error: Input must be the dictionary output from AudioHandlerTool.\" samples = audio_dict['audio_samples'] metadata = [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\TFDTool.py"
+  },
+  {
+    "class": "TFDDataTool",
+    "name_attr": "tfd_data_tool",
+    "line_start": 1146,
+    "line_end": 1213,
+    "n_lines": 68,
+    "bases": [
+      "Tool"
+    ],
+    "description": "\n    Manages the storage and retrieval of raw Time-Frequency Analysis data.\n    - 'save': Saves the TFD data dictionary to a compressed .npz file.\n    - 'load': Loads a .npz file back into a dictionary for processing.\n    ",
+    "output_type": "any",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "action",
+        "type": "string",
+        "desc": "'save' or 'load'"
+      },
+      {
+        "name": "filename",
+        "type": "string",
+        "desc": "The filename (e.g., 'analysis_results'). Extension .npz added automatically."
+      },
+      {
+        "name": "data_dict",
+        "type": "any",
+        "desc": "The dictionary returned by TFDTool (required for 'save')."
+      }
+    ],
+    "forward": {
+      "start": 1177,
+      "end": 1213,
+      "first_line": "def forward(self, action, filename, data_dict=None): try: clean_name = os.path.basename(filename).replace('.npz', '') file_path = os.path.join(self.safe_dir, f\"{clean_name}.npz\") if action == 'save': if not data_dict: return \"Error: 'data_dict' is required for save action.\" # We use savez_compressed. We must unpack the dict to kwargs. # Note: We cast complex matrices to save space if needed, [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\TFDDataTool.py"
+  },
+  {
+    "class": "LogFreqPlotTool",
+    "name_attr": "log_freq_plot_tool",
+    "line_start": 1224,
+    "line_end": 1367,
+    "n_lines": 144,
+    "bases": [
+      "Tool"
+    ],
+    "description": "\n    Generates a Log-Frequency (Octave-scale) Spectrogram from raw TFD data.\n    Useful for visualizing musical tones, speech, or wideband signals.\n    Resamples the linear Time-Frequency matrix onto a logarithmic frequency grid.\n\n    Returns a recommendation to use 'save_plot'.\n    ",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "tfd_data",
+        "type": "any",
+        "desc": "The dictionary containing 'tfd_matrix' and 'axes' (from TFDTool or TFDDataTool)."
+      },
+      {
+        "name": "f_min",
+        "type": "number",
+        "desc": "Minimum frequency for the log axis (Hz). Default 20."
+      },
+      {
+        "name": "f_max",
+        "type": "number",
+        "desc": "Maximum frequency (Hz). Default is Nyquist (Fs/2)."
+      },
+      {
+        "name": "num_bins",
+        "type": "integer",
+        "desc": "Height of the resulting image in pixels/bins. Default 500."
+      }
+    ],
+    "forward": {
+      "start": 1260,
+      "end": 1367,
+      "first_line": "def forward(self, tfd_data, f_min=20.0, f_max=None, num_bins=500): try: # 1. Unpack Data if not isinstance(tfd_data, dict) or 'tfd_matrix' not in tfd_data or 'axes' not in tfd_data: return \"Error: Input must be a valid TFD data dictionary.\" tfd_matrix = tfd_data['tfd_matrix'] # Shape: (Time, LinearFreq) axes = tfd_data['axes'] meta = tfd_data.get('metadata', {}) lin_freqs = axes['y_axis'] # [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\LogFreqPlotTool.py"
+  },
+  {
+    "class": "EMDTool",
+    "name_attr": "emd_tool",
+    "line_start": 1372,
+    "line_end": 1449,
+    "n_lines": 78,
+    "bases": [
+      "Tool"
+    ],
+    "description": "Performs Empirical Mode Decomposition (EMD) on a specific audio channel. Returns a 2D NumPy array of the Intrinsic Mode Functions (IMFs). The output shape is (number_of_samples, number_of_imfs). ",
+    "output_type": "any",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "audio_dict",
+        "type": "any",
+        "desc": "The dictionary returned by AudioHandlerTool (containing 'audio_samples' and 'metadata')."
+      },
+      {
+        "name": "channel",
+        "type": "integer",
+        "desc": "The channel index to analyze if audio is multi-channel. Default is 0."
+      },
+      {
+        "name": "max_imfs",
+        "type": "integer",
+        "desc": "Optional: The maximum number of IMFs to extract."
+      }
+    ],
+    "forward": {
+      "start": 1406,
+      "end": 1449,
+      "first_line": "def forward(self, audio_dict, channel=0, max_imfs=None) -> np.ndarray: \"\"\" Executes the EMD process using the 'emd' library with unified input handling. \"\"\" try: # --- 1. Validation and Extraction (Unified Logic) --- if not isinstance(audio_dict, dict) or 'audio_samples' not in audio_dict or 'metadata' not in audio_dict: return \"Error: Input must be the dictionary output from [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\EMDTool.py"
+  },
+  {
+    "class": "EMDToolGv2",
+    "name_attr": "emd_tool",
+    "line_start": 1454,
+    "line_end": 1539,
+    "n_lines": 86,
+    "bases": [
+      "Tool"
+    ],
+    "description": "Performs Empirical Mode Decomposition (EMD) on a specific audio channel. Returns a 2D NumPy array of the Intrinsic Mode Functions (IMFs). The output shape is (number_of_samples, number_of_imfs). ",
+    "output_type": "any",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "audio_dict",
+        "type": "any",
+        "desc": "The dictionary returned by AudioHandlerTool (containing 'audio_samples' and 'metadata')."
+      },
+      {
+        "name": "channel",
+        "type": "integer",
+        "desc": "The channel index to analyze if audio is multi-channel. Default is 0."
+      },
+      {
+        "name": "max_imfs",
+        "type": "integer",
+        "desc": "Optional: The maximum number of IMFs to extract."
+      }
+    ],
+    "forward": {
+      "start": 1488,
+      "end": 1539,
+      "first_line": "def forward(self, audio_dict, channel=0, max_imfs=None) -> np.ndarray: \"\"\" Executes the EMD process using the 'emd' library with unified input handling. \"\"\" try: # --- 1. Validation and Extraction (Unified Logic) --- if not isinstance(audio_dict, dict) or 'audio_samples' not in audio_dict or 'metadata' not in audio_dict: return \"Error: Input must be the dictionary output from [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\EMDToolGv2.py"
+  },
+  {
+    "class": "CreateChromaDBTool",
+    "name_attr": "create_chromadb",
+    "line_start": 1608,
+    "line_end": 1685,
+    "n_lines": 78,
+    "bases": [
+      "Tool"
+    ],
+    "description": "Creates a new, empty ChromaDB vector database at a specified path. If a database already exists at the path, it will be removed and replaced.",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "db_path",
+        "type": "string",
+        "desc": "The file system path where the ChromaDB database will be created. Defaults to './chroma_db_mem0'."
+      },
+      {
+        "name": "embedder_model",
+        "type": "string",
+        "desc": "The sentence-transformer model to configure for the database. Defaults to 'sentence-transformers/distiluse-base-multilin…"
+      }
+    ],
+    "forward": {
+      "start": 1636,
+      "end": 1685,
+      "first_line": "def forward(self, db_path=None, embedder_model=None): \"\"\" Creates an empty ChromaDB database with the specified configuration. \"\"\" # Set default values if arguments are not provided if db_path is None: db_path = \"./chroma_db_mem0\" if embedder_model is None: embedder_model = \"sentence-transformers/distiluse-base-multilingual-cased-v2\" try: if os.path.exists(db_path): logging.info(f\"Removing [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\CreateChromaDBTool.py"
+  },
+  {
+    "class": "PopulateChromaDBTool",
+    "name_attr": "populate_chromadb",
+    "line_start": 1774,
+    "line_end": 1947,
+    "n_lines": 174,
+    "bases": [
+      "SafeOpenTool"
+    ],
+    "description": "Reads a markdown dialog file, extracts memories using an LLM, and populates a specified ChromaDB collection with those memories.",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "db_path",
+        "type": "string",
+        "desc": "Path to the ChromaDB database to populate."
+      },
+      {
+        "name": "markdown_file",
+        "type": "string",
+        "desc": "Path to the markdown dialog file containing the conversation."
+      },
+      {
+        "name": "collection_name",
+        "type": "string",
+        "desc": "The name of the collection to add the memories to."
+      },
+      {
+        "name": "user_id",
+        "type": "string",
+        "desc": "A user ID to be stored in the metadata for each memory."
+      },
+      {
+        "name": "embedder_model",
+        "type": "string",
+        "desc": "The sentence-transformer model to use for embedding. Defaults to 'sentence-transformers/distiluse-base-multilingual-case…"
+      }
+    ],
+    "forward": {
+      "start": 1877,
+      "end": 1947,
+      "first_line": "def forward(self, db_path, markdown_file, collection_name, user_id, embedder_model=None): if embedder_model is None: embedder_model = \"sentence-transformers/distiluse-base-multilingual-cased-v2\" try: # ... (rest of the method remains the same) ... if not os.path.exists(db_path): return f\"Error: Database not found at '{db_path}'. Please create it first.\" dialog_content = [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\PopulateChromaDBTool.py"
+  },
+  {
+    "class": "QueryChromaDBTool",
+    "name_attr": "query_chromadb",
+    "line_start": 1981,
+    "line_end": 2119,
+    "n_lines": 139,
+    "bases": [
+      "Tool"
+    ],
+    "description": "Queries a ChromaDB database. It can perform several actions: 'list_collections': Lists all available collections. 'get_all_memories': Retrieves all memories from a specific collection. 'search': Performs a similarity search for a query within a collection.",
+    "output_type": "object",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "db_path",
+        "type": "string",
+        "desc": "Path to the ChromaDB database to query."
+      },
+      {
+        "name": "action",
+        "type": "string",
+        "desc": "The action to perform. Supported values: 'list_collections', 'get_all_memories', 'search'."
+      },
+      {
+        "name": "collection_name",
+        "type": "string",
+        "desc": "The name of the collection for 'get_all_memories' and 'search' actions."
+      },
+      {
+        "name": "query_text",
+        "type": "string",
+        "desc": "The search query text for the 'search' action."
+      },
+      {
+        "name": "n_results",
+        "type": "integer",
+        "desc": "The number of results to return for a 'search' action. Defaults to 5."
+      },
+      {
+        "name": "embedder_model",
+        "type": "string",
+        "desc": "The sentence-transformer model for embedding the search query. Defaults to 'sentence-transformers/distiluse-base-multili…"
+      }
+    ],
+    "forward": {
+      "start": 2061,
+      "end": 2119,
+      "first_line": "def forward(self, db_path, action, collection_name=None, query_text=None, n_results=None, embedder_model=None): if n_results is None: n_results = 5 if embedder_model is None: embedder_model = \"sentence-transformers/distiluse-base-multilingual-cased-v2\" try: # ... (rest of the method remains the same) ... if action == \"list_collections\": memory_instance = self._get_memory_client(db_path, [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\QueryChromaDBTool.py"
+  },
+  {
+    "class": "ManageChromaDBTool",
+    "name_attr": "manage_chromadb",
+    "line_start": 2160,
+    "line_end": 2326,
+    "n_lines": 167,
+    "bases": [
+      "Tool"
+    ],
+    "description": "Manages a ChromaDB database with query and delete functions. Query actions: 'list_collections', 'get_all_memories', 'search'. Delete actions: 'delete_collection', 'delete_memories_by_ids', 'delete_memories_by_metadata'.",
+    "output_type": "object",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "db_path",
+        "type": "string",
+        "desc": "Path to the ChromaDB database to manage."
+      },
+      {
+        "name": "action",
+        "type": "string",
+        "desc": "The action to perform. See tool description for supported actions."
+      },
+      {
+        "name": "collection_name",
+        "type": "string",
+        "desc": "The target collection name. Required for most actions."
+      },
+      {
+        "name": "query_text",
+        "type": "string",
+        "desc": "The search query text for the 'search' action."
+      },
+      {
+        "name": "n_results",
+        "type": "integer",
+        "desc": "Number of results for 'search' action. Defaults to 5."
+      },
+      {
+        "name": "memory_ids",
+        "type": "object",
+        "desc": "A list of memory string IDs to delete. Required for 'delete_memories_by_ids'."
+      },
+      {
+        "name": "metadata_filter",
+        "type": "object",
+        "desc": "A dictionary for metadata filtering (e.g., {'user_id': 'alice'}). Required for 'delete_memories_by_metadata'."
+      },
+      {
+        "name": "embedder_model",
+        "type": "string",
+        "desc": "The sentence-transformer model for search query embedding. Defaults to 'sentence-transformers/distiluse-base-multilingua…"
+      }
+    ],
+    "forward": {
+      "start": 2246,
+      "end": 2326,
+      "first_line": "def forward(self, db_path, action, collection_name=None, query_text=None, n_results=None, memory_ids=None, metadata_filter=None, embedder_model=None): if n_results is None: n_results = 5 if embedder_model is None: embedder_model = \"sentence-transformers/distiluse-base-multilingual-cased-v2\" try: # ... (rest of the method remains the same) ... # Query Actions if action == \"list_collections\": [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\ManageChromaDBTool.py"
+  },
+  {
+    "class": "AnalyzeChromaDBTool",
+    "name_attr": "analyze_chromadb",
+    "line_start": 2331,
+    "line_end": 2439,
+    "n_lines": 109,
+    "bases": [
+      "Tool"
+    ],
+    "description": "Finds and verifies mem0 ChromaDB structures. Actions: 'find' to search for potential databases in a path, 'verify' to check if a specific path is a valid ChromaDB structure.",
+    "output_type": "object",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "action",
+        "type": "string",
+        "desc": "The action to perform: 'find' or 'verify'."
+      },
+      {
+        "name": "search_path",
+        "type": "string",
+        "desc": "The directory path to start the search from (for 'find' action)."
+      },
+      {
+        "name": "db_path",
+        "type": "string",
+        "desc": "The path to a potential ChromaDB directory to verify (for 'verify' action)."
+      }
+    ],
+    "forward": {
+      "start": 2415,
+      "end": 2439,
+      "first_line": "def forward(self, action: str, search_path: str = None, db_path: str = None): if action == \"find\": if not search_path: return \"Error: 'search_path' is required for 'find' action.\" if not os.path.isdir(search_path): return f\"Error: The search path '{search_path}' does not exist or is not a directory.\" found_dbs = self._find_potential_mem0_dbs(search_path) if not found_dbs: return f\"No [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\AnalyzeChromaDBTool.py"
+  },
+  {
+    "class": "MyGoogleSearchTool",
+    "name_attr": "web_search",
+    "line_start": 2449,
+    "line_end": 2509,
+    "n_lines": 61,
+    "bases": [
+      "Tool"
+    ],
+    "description": "Performs a web search based on your query (think a Google search) then returns the top search results.",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "query",
+        "type": "string",
+        "desc": "The search query to perform."
+      }
+    ],
+    "forward": {
+      "start": 2486,
+      "end": 2509,
+      "first_line": "def forward(self, query: str) -> str: if self.engine == \"google\": results = list(self.gsearch(query, num_results=self.max_results, unique=True, advanced=True)) if len(results) == 0: raise Exception(\"No results found! Try a less restrictive/shorter query.\") postprocessed_results = [f\"[{result.title}]({result.url})\\n{result.description}\" for result in results] elif self.engine == \"duckduckgo\": [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\MyGoogleSearchTool.py"
+  },
+  {
+    "class": "SearXNGSearchTool",
+    "name_attr": "web_searXNG",
+    "line_start": 2773,
+    "line_end": 2795,
+    "n_lines": 23,
+    "bases": [
+      "Tool"
+    ],
+    "description": "Performs a web search based on your query (think a Google search) then returns the top search results.",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "query",
+        "type": "string",
+        "desc": "The search query to perform."
+      }
+    ],
+    "forward": {
+      "start": 2785,
+      "end": 2795,
+      "first_line": "def forward(self, query: str) -> str: results = xngsearch(query, self.max_results) if len(results) == 0: raise Exception(\"No results found! Try a less restrictive/shorter query.\") postprocessed_results = [\"[\" + result['title'] + \"](\" + result['url']+\")\\n\" + result['description'] for result in results] # returns a list of ~10 strings formatted as [title](URL)\\ndescription return \"## Search [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\SearXNGSearchTool.py"
+  },
+  {
+    "class": "PrologTool",
+    "name_attr": "prolog_tool",
+    "line_start": 2814,
+    "line_end": 3033,
+    "n_lines": 220,
+    "bases": [
+      "SafeOpenTool"
+    ],
+    "description": "Interface to SWI-Prolog. Supports consulting facts/rules, running queries, clearing the knowledge base, saving/loading KB to/from files, and auto-saving on close. File operations are restricted to a safe directory.",
+    "output_type": "object",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "action",
+        "type": "string",
+        "desc": "Operation: 'consult', 'query', 'clear', 'save', 'load'."
+      },
+      {
+        "name": "program",
+        "type": "string",
+        "desc": "Prolog clauses (facts/rules). Required for 'consult'."
+      },
+      {
+        "name": "query_string",
+        "type": "string",
+        "desc": "Prolog query to execute. Required for 'query'."
+      },
+      {
+        "name": "find_all",
+        "type": "boolean",
+        "desc": "For 'query': return all solutions (True) or just the first (False)."
+      },
+      {
+        "name": "reset_on_query",
+        "type": "boolean",
+        "desc": "If True, resets the KB before each query."
+      },
+      {
+        "name": "reset_on_consult",
+        "type": "boolean",
+        "desc": "If True, resets the KB before consulting new facts/rules."
+      },
+      {
+        "name": "reset_on_all",
+        "type": "boolean",
+        "desc": "If True, resets the KB before BOTH consult and query."
+      },
+      {
+        "name": "save_to",
+        "type": "string",
+        "desc": "Path to save the current KB (Prolog .pl file). Will be saved inside the safe directory."
+      },
+      {
+        "name": "load_from",
+        "type": "string",
+        "desc": "Path to load a KB from a Prolog .pl file. Must exist inside the safe directory."
+      }
+    ],
+    "forward": {
+      "start": 2906,
+      "end": 3008,
+      "first_line": "def forward(self, action: str, program: str = None, query_string: str = None, find_all: bool = True, reset_on_query: bool = None, reset_on_consult: bool = None, reset_on_all: bool = None, save_to: str = None, load_from: str = None): if not self.prolog: return \"Error: Prolog interpreter is not available.\" # Resolve reset flags if reset_on_query is None: reset_on_query = [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\PrologTool.py"
+  },
+  {
+    "class": "PDFSplitterToolGv1",
+    "name_attr": "pdf_splitter_tool",
+    "line_start": 3070,
+    "line_end": 3141,
+    "n_lines": 72,
+    "bases": [
+      "SafeOpenTool"
+    ],
+    "description": "This tool extracts text from a PDF (local or URL) and splits it into Markdown files.\n                     It preserves formatting and tables. Files are saved in the safe directory.",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "file_name",
+        "type": "string",
+        "desc": "The pathname or URL of the PDF file to be split."
+      },
+      {
+        "name": "pages_per_chunk",
+        "type": "integer",
+        "desc": "Maximum number of pages per generated Markdown file."
+      }
+    ],
+    "forward": {
+      "start": 3090,
+      "end": 3141,
+      "first_line": "def forward(self, file_name, pages_per_chunk): # 1. Handle Input (Logic mirrored from PDF2TXTTool) if os.path.isfile(file_name) or not re.match(valid_url_pattern, file_name): # SafeOpenTool handles path stripping and security logic binary_file = super().forward(file_name, \"rb\") elif re.match(valid_url_pattern, file_name) is not None: # Handle Web URL logging.info(f\"PDFSplitterTool: [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\PDFSplitterToolGv1.py"
+  },
+  {
+    "class": "PDFSplitterToolGv2",
+    "name_attr": "pdf_splitter_tool",
+    "line_start": 3146,
+    "line_end": 3231,
+    "n_lines": 86,
+    "bases": [
+      "SafeOpenTool"
+    ],
+    "description": "Splits a PDF into Markdown files. It ensures chunks do not break\n                     in the middle of a paragraph by splitting at double newlines.",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "file_name",
+        "type": "string",
+        "desc": "The pathname or URL of the PDF file to be split."
+      },
+      {
+        "name": "pages_per_chunk",
+        "type": "integer",
+        "desc": "Maximum number of pages per generated Markdown file."
+      }
+    ],
+    "forward": {
+      "start": 3166,
+      "end": 3231,
+      "first_line": "def forward(self, file_name, pages_per_chunk): # 1. Handle Input (Logic mirrored from PDF2TXTTool) if os.path.isfile(file_name) or not re.match(valid_url_pattern, file_name): # SafeOpenTool handles path stripping and security logic binary_file = super().forward(file_name, \"rb\") elif re.match(valid_url_pattern, file_name) is not None: # Handle Web URL logging.info(f\"PDFSplitterTool: [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\PDFSplitterToolGv2.py"
+  },
+  {
+    "class": "PDF2TXTTool",
+    "name_attr": "pdf_2_txt_tool",
+    "line_start": 3236,
+    "line_end": 3276,
+    "n_lines": 41,
+    "bases": [
+      "SafeOpenTool"
+    ],
+    "description": "This is a tool that extracts the text from a PDF file.\n                     If the file is not in a safe directory it raises an exception.",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "file_name",
+        "type": "string",
+        "desc": "The pathname or URL of the PDF file to be opened."
+      }
+    ],
+    "forward": {
+      "start": 3253,
+      "end": 3276,
+      "first_line": "def forward(self, file_name): if os.path.isfile(file_name): # if it's a path to a local file: # binary_file = super().forward(file_name, \"rb\") # invoke SafeOpenTool binary_file = super().forward(file_name, \"rb\") # invoke SafeOpenTool elif re.match(valid_url_pattern, file_name) is not None: # else, if it's a web link: with httpx.stream(\"GET\", file_name) as response: binary_file = [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\PDF2TXTTool.py"
+  },
+  {
+    "class": "PDFAnalyzerTool",
+    "name_attr": "pdf_analyzer_tool",
+    "line_start": 3286,
+    "line_end": 3463,
+    "n_lines": 178,
+    "bases": [
+      "Tool"
+    ],
+    "description": "Analyzes a PDF file to determine the best text extraction method (direct vs. OCR).\n                     It provides a detailed report on text content, images, and text readability.\n                     The file must be located in the secure upload directory.",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "pdf_filename",
+        "type": "string",
+        "desc": "The name of the PDF file (e.g., 'report.pdf') located in the safe upload directory."
+      },
+      {
+        "name": "min_readable_ratio",
+        "type": "number",
+        "desc": "The minimum ratio of readable characters (0.0 to 1.0) to consider text directly extractable. Defaults to 0.7."
+      },
+      {
+        "name": "sample_pages",
+        "type": "integer",
+        "desc": "The number of pages to sample for a quick analysis of large documents. Defaults to 3."
+      }
+    ],
+    "forward": {
+      "start": 3401,
+      "end": 3463,
+      "first_line": "def forward(self, pdf_filename: str, min_readable_ratio: float = 0.7, sample_pages: int = 3): full_path = os.path.abspath(os.path.join(self.safe_dir, os.path.basename(pdf_filename))) safe_dir_abs = os.path.abspath(self.safe_dir) if not full_path.startswith(safe_dir_abs): return self._format_report({\"error\": f\"Access denied. File '{pdf_filename}' is outside the safe directory.\", \"path\": [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\PDFAnalyzerTool.py"
+  },
+  {
+    "class": "OCR2TXTTool",
+    "name_attr": "ocr_2_txt_tool",
+    "line_start": 3476,
+    "line_end": 3552,
+    "n_lines": 77,
+    "bases": [
+      "Tool"
+    ],
+    "description": "Extracts text from PDF files using Optical Character Recognition (OCR).\n                     This tool is essential for scanned documents, PDFs containing only images, or when PDFAnalyzerTool recommends 'OCR_REQUIRED' or 'HYBRID'.\n                     It is more resource-intensive than the standard pdf_2_txt_tool.\n                     The file must be located in the secure upload directory.",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "file_name",
+        "type": "string",
+        "desc": "The name of the PDF file (e.g., 'scanned_report.pdf') located in the safe upload directory."
+      },
+      {
+        "name": "language",
+        "type": "string",
+        "desc": "The language of the text in the document (e.g., 'eng' for English, 'ita' for Italian, 'fra' for French). Defaults to 'en…"
+      }
+    ],
+    "forward": {
+      "start": 3523,
+      "end": 3552,
+      "first_line": "def forward(self, file_name: str, language: str = 'eng'): # --- Security: Sanitize and validate the file path --- full_path = os.path.abspath(os.path.join(self.safe_dir, os.path.basename(file_name))) if not full_path.startswith(self.safe_dir): return f\"Error: Access denied. File '{file_name}' is outside the safe directory.\" if not os.path.exists(full_path): return f\"Error: File not found at [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\OCR2TXTTool.py"
+  },
+  {
+    "class": "CSV2TUPTool",
+    "name_attr": "csv_2_tup_tool",
+    "line_start": 3642,
+    "line_end": 3666,
+    "n_lines": 25,
+    "bases": [
+      "SafeOpenTool"
+    ],
+    "description": "This is a tool that extracts a tuple from a CSV file.\n                     If the file is not in a safe directory it raises an exception.",
+    "output_type": "object",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "file_name",
+        "type": "string",
+        "desc": "The name of the file to be opened."
+      }
+    ],
+    "forward": {
+      "start": 3660,
+      "end": 3666,
+      "first_line": "def forward(self, file_name): csv_file = super().forward(file_name, \"rt\",) # Iterate through all the pages and extract text tupla = [] tupla = read_dynamic_csv(csv_file) csv_file.close() return tupla"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\CSV2TUPTool.py"
+  },
+  {
+    "class": "LLM_Tool",
+    "name_attr": "llm_tool",
+    "line_start": 3724,
+    "line_end": 3802,
+    "n_lines": 79,
+    "bases": [
+      "SafeOpenTool"
+    ],
+    "description": "This is a tool that accepts a question (and possibly a list of images) and returns an answer.",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "question",
+        "type": "string",
+        "desc": "The question to be answered. If it contains web URLs pointing to images, they must be explored with this tool, rather th…"
+      },
+      {
+        "name": "list_of_images",
+        "type": "object",
+        "desc": "An optional list, possibly empty, containing a mix of base64-encoded .JPG or .PNG images, paths to local image files, an…"
+      }
+    ],
+    "forward": {
+      "start": 3751,
+      "end": 3802,
+      "first_line": "def forward(self, question, list_of_images=[]): print(f\"*** In LLM_Tool.forward con configurazione: {self.config}\", file=sys.stderr) content = [ {\"type\": \"text\", \"text\": question} ] for img in list_of_images: invalid_argument = True if isinstance(img, str): if re.match(valid_url_pattern, img) is not None: invalid_argument = False elif os.path.isfile(img): img = super().forward(img, \"rb\") [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\LLM_Tool.py"
+  },
+  {
+    "class": "Summarization_Tool",
+    "name_attr": "summarization_tool",
+    "line_start": 3805,
+    "line_end": 3822,
+    "n_lines": 18,
+    "bases": [
+      "LLM_Tool"
+    ],
+    "description": "This is a tool that summarizes the input (a long multi-line string)",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "long_text",
+        "type": "string",
+        "desc": "The text to be summarized."
+      },
+      {
+        "name": "list_of_images",
+        "type": "object",
+        "desc": "An optional list..."
+      }
+    ],
+    "forward": {
+      "start": 3820,
+      "end": 3822,
+      "first_line": "def forward(self, long_text, list_of_images=[]): # La chiamata a super().forward utilizzerà automaticamente la configurazione corretta return super().forward(r'summarize the following text:\\n\\n' + long_text, list_of_images)"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\Summarization_Tool.py"
+  },
+  {
+    "class": "Translation_Tool",
+    "name_attr": "translation_tool",
+    "line_start": 3853,
+    "line_end": 3872,
+    "n_lines": 20,
+    "bases": [
+      "LLM_Tool"
+    ],
+    "description": "This is a tool that translates the input (a long multi-line string) from one language to another.",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "original_language",
+        "type": "string",
+        "desc": "The original language of the text."
+      },
+      {
+        "name": "target_language",
+        "type": "string",
+        "desc": "The target language for the translation."
+      },
+      {
+        "name": "long_text",
+        "type": "string",
+        "desc": "The text to be summarized."
+      },
+      {
+        "name": "list_of_images",
+        "type": "object",
+        "desc": "An optional list..."
+      }
+    ],
+    "forward": {
+      "start": 3870,
+      "end": 3872,
+      "first_line": "def forward(self, original_language, target_language, long_text, list_of_images=[]): # La chiamata a super().forward utilizzerà automaticamente la configurazione corretta return super().forward(r'translate the following text:\\n\\n from ' + original_language + ' to ' + target_language + ':\\n\\n' + long_text, list_of_images)"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\Translation_Tool.py"
+  },
+  {
+    "class": "MarkdownToPDFTool",
+    "name_attr": "markdown_to_pdf_tool",
+    "line_start": 3880,
+    "line_end": 3957,
+    "n_lines": 78,
+    "bases": [
+      "Tool"
+    ],
+    "description": "Converts a given Markdown string into a PDF file.\n                     It allows specifying the paper size, page orientation, and margin.\n                     The resulting PDF is saved in a secure directory.",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "markdown_content",
+        "type": "string",
+        "desc": "The Markdown content to be converted into a PDF."
+      },
+      {
+        "name": "output_filename",
+        "type": "string",
+        "desc": "The desired filename for the output PDF (e.g., 'report.pdf'). It must end with .pdf."
+      },
+      {
+        "name": "paper_format",
+        "type": "string",
+        "desc": "The paper size. Common values are 'a4', 'a3', 'letter', 'legal', 'a5'. Defaults to 'a4'."
+      },
+      {
+        "name": "orientation",
+        "type": "string",
+        "desc": "The page orientation. Must be either 'portrait' or 'landscape'. Defaults to 'portrait'."
+      },
+      {
+        "name": "margin",
+        "type": "string",
+        "desc": "The page margin as a string (e.g., '1in', '2cm', '0.75in'). Defaults to '1in'."
+      }
+    ],
+    "forward": {
+      "start": 3931,
+      "end": 3957,
+      "first_line": "def forward(self, markdown_content: str, output_filename: str, paper_format: str = 'a4', orientation: str = 'portrait', margin: str = '1in'): if not output_filename.lower().endswith('.pdf'): return f\"Error: The output_filename '{output_filename}' must end with .pdf.\" full_path = os.path.join(self.safe_dir, os.path.basename(output_filename)) try: print(f\"Generating PDF with settings: [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\MarkdownToPDFTool.py"
+  },
+  {
+    "class": "ArtifactVaultToolGv10",
+    "name_attr": "artifact_vault",
+    "line_start": 3962,
+    "line_end": 4130,
+    "n_lines": 169,
+    "bases": [
+      "Tool"
+    ],
+    "description": "A persistent HDF5 repository. Supports 'stash', 'retrieve', 'catalog', and 'update'. Retrieval is 'Flattened': for complex artifacts (like EMD), you can access signals directly via keys like result['original_signal'] or result['imf_matrix'].",
+    "output_type": "any",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "action",
+        "type": "string",
+        "desc": "Operation: 'stash', 'retrieve', 'catalog', or 'update'."
+      },
+      {
+        "name": "artifact_id",
+        "type": "string",
+        "desc": "Unique ID for the artifact."
+      },
+      {
+        "name": "data",
+        "type": "any",
+        "desc": "Data to stash (Numpy array). Not needed for 'update'."
+      },
+      {
+        "name": "access_hint",
+        "type": "string",
+        "desc": "Instructional Manual: What the data represents and how to index it."
+      },
+      {
+        "name": "metadata",
+        "type": "object",
+        "desc": "Dictionary of parameters/annotations."
+      },
+      {
+        "name": "vault_filename",
+        "type": "string",
+        "desc": "Vault filename (defaults to 'research_session.h5')."
+      }
+    ],
+    "forward": {
+      "start": 4016,
+      "end": 4124,
+      "first_line": "def forward(self, action: str, artifact_id: str = None, data: any = None, access_hint: str = None, metadata: dict = None, vault_filename: str = None) -> any: ''' if vault_filename: vault_path = os.path.join(self.safe_dir, os.path.basename(vault_filename)) else: vault_path = self.vault_path if not os.path.exists(vault_path): return f\"Error: Vault '{target_name}' not found.\" ''' target_name = [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\ArtifactVaultToolGv10.py"
+  },
+  {
+    "class": "ArtifactVaultToolGv16",
+    "name_attr": "artifact_vault",
+    "line_start": 4135,
+    "line_end": 4421,
+    "n_lines": 287,
+    "bases": [
+      "Tool"
+    ],
+    "description": "A unified HDF5 repository for DSP data. Supports four actions:\n- 'catalog': Returns a lite list of all artifact IDs.\n- 'inspect': Returns deep metadata and shapes for a specific ID or wildcard pattern (e.g. 'EMD*').\n- 'retrieve': Returns the data. Complex artifacts (EMD) are 'Flattened' for direct access to signals.\n- 'stash': Saves numpy arrays or dictionaries with metadata into the vault.- 'audit': Scans all artifacts matching a prefix and returns a summary of their dataset shapes.    Use 'audit' for global complexity analysis without looping manually.",
+    "output_type": "any",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "action",
+        "type": "string",
+        "desc": "Operation: 'catalog', 'inspect', 'retrieve', or 'stash'."
+      },
+      {
+        "name": "artifact_id",
+        "type": "string",
+        "desc": "Unique ID or pattern (required for retrieve, stash, inspect)."
+      },
+      {
+        "name": "data",
+        "type": "any",
+        "desc": "Data to stash (Numpy array or dict)."
+      },
+      {
+        "name": "access_hint",
+        "type": "string",
+        "desc": "Stash only: Instructions on what the data represents."
+      },
+      {
+        "name": "metadata",
+        "type": "object",
+        "desc": "Stash only: Dictionary of annotations."
+      },
+      {
+        "name": "vault_filename",
+        "type": "string",
+        "desc": "Vault filename (defaults to 'research_session.h5')."
+      }
+    ],
+    "forward": {
+      "start": 4193,
+      "end": 4415,
+      "first_line": "def forward(self, action: str, artifact_id: str = None, data: any = None, access_hint: str = None, metadata: dict = None, vault_filename: str = None) -> any: # 1. Resolve which vault file we are hitting target_name = vault_filename if vault_filename else self.default_vault active_vault_path = os.path.join(self.safe_dir, os.path.basename(target_name)) if not os.path.exists(active_vault_path) [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\ArtifactVaultToolGv16.py"
+  },
+  {
+    "class": "ArtifactVaultInspectorToolGv2",
+    "name_attr": "artifact_inspector",
+    "line_start": 4441,
+    "line_end": 4545,
+    "n_lines": 105,
+    "bases": [
+      "Tool"
+    ],
+    "description": "Inspects the internal structure of the HDF5 vault. Returns a tree-like summary of artifact IDs, dataset shapes, dtypes, and metadata. Essential for 'scouting' the vault before retrieving large arrays.",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "vault_filename",
+        "type": "string",
+        "desc": "The name of the vault file (default: 'research_session.h5')."
+      }
+    ],
+    "forward": {
+      "start": 4499,
+      "end": 4545,
+      "first_line": "def forward(self, vault_filename: str = None) -> str: target_name = vault_filename if vault_filename else self.default_vault vault_path = os.path.join(self.safe_dir, os.path.basename(target_name)) if not os.path.exists(vault_path): return f\"Error: Vault file '{target_name}' not found.\" try: report = { \"vault_path\": vault_path, \"artifacts\": {} } with h5py.File(vault_path, 'r') as f: def [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\ArtifactVaultInspectorToolGv2.py"
+  },
+  {
+    "class": "ArtifactVaultInspectorToolGv3",
+    "name_attr": "artifact_inspector",
+    "line_start": 4550,
+    "line_end": 4661,
+    "n_lines": 112,
+    "bases": [
+      "Tool"
+    ],
+    "description": "Inspects the vault. If 'artifact_id' is omitted, returns a lite list of IDs. If 'artifact_id' is provided, returns deep metadata, shapes, and protocol hints for matching items. Use this to scout data before retrieval.",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "artifact_id",
+        "type": "string",
+        "desc": "Optional: Specific ID or wildcard (e.g., 'EMD*') for deep inspection."
+      },
+      {
+        "name": "vault_filename",
+        "type": "string",
+        "desc": "Vault filename (defaults to 'research_session.h5')."
+      }
+    ],
+    "forward": {
+      "start": 4585,
+      "end": 4652,
+      "first_line": "def forward(self, artifact_id: str = None, vault_filename: str = None) -> str: target_name = vault_filename if vault_filename else self.default_vault vault_path = os.path.join(self.safe_dir, os.path.basename(target_name)) if not os.path.exists(vault_path): return f\"Error: Vault '{target_name}' not found.\" try: with h5py.File(vault_path, 'r') as f: # --- PERSONALITY 1: THE LITE CATALOG --- if [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\ArtifactVaultInspectorToolGv3.py"
+  },
+  {
+    "class": "ArtifactVaultByPatternToolGv1",
+    "name_attr": "artifact_by_pattern",
+    "line_start": 4668,
+    "line_end": 4797,
+    "n_lines": 130,
+    "bases": [
+      "Tool"
+    ],
+    "description": "Inspects the HDF5 vault. If 'artifact_id' is provided, it returns deep shapes and metadata for that specific item. If 'artifact_id' is omitted, it returns a high-level summary of all available IDs to save context space.",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "artifact_id",
+        "type": "string",
+        "desc": "Optional: Specific ID or prefix (e.g., 'MLSESS_IMFs_Seg_1*') to inspect."
+      },
+      {
+        "name": "vault_filename",
+        "type": "string",
+        "desc": "The name of the vault file."
+      }
+    ],
+    "forward": {
+      "start": 4727,
+      "end": 4797,
+      "first_line": "def forward(self, artifact_id: str = None, vault_filename: str = None) -> str: target_name = vault_filename if vault_filename else self.default_vault vault_path = os.path.join(self.safe_dir, os.path.basename(target_name)) if not os.path.exists(vault_path): return f\"Error: Vault file '{target_name}' not found.\" try: with h5py.File(vault_path, 'r') as f: # CASE 1: High-level Catalog (No [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\ArtifactVaultByPatternToolGv1.py"
+  },
+  {
+    "class": "SlamFssSifterToolGv1",
+    "name_attr": "slam_fss_sifter",
+    "line_start": 4802,
+    "line_end": 4894,
+    "n_lines": 93,
+    "bases": [
+      "Tool"
+    ],
+    "description": "High-performance windowed EMD sifter. Loads a signal, applies a Tukey window, performs EMD, and stashes results in the hdf5_physics_archive automatically. Designed to prevent context overflow during massive 4M sample sweeps.",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "audio_dict",
+        "type": "any",
+        "desc": "The dictionary returned by audio_handler_tool."
+      },
+      {
+        "name": "window_size",
+        "type": "integer",
+        "desc": "Size of the window (e.g., 32768)."
+      },
+      {
+        "name": "overlap",
+        "type": "integer",
+        "desc": "Overlap in samples (e.g., 1024)."
+      },
+      {
+        "name": "max_imfs",
+        "type": "integer",
+        "desc": "Limit for EMD."
+      },
+      {
+        "name": "vault_prefix",
+        "type": "string",
+        "desc": "Prefix for artifact IDs."
+      }
+    ],
+    "forward": {
+      "start": 4841,
+      "end": 4894,
+      "first_line": "def forward(self, audio_dict: any, window_size: int, overlap: int, max_imfs: int = 12, vault_prefix: str = \"SLAM-FSS\") -> str: samples = audio_dict['audio_samples'] # Step size S = window_size - overlap # Total number of full windows possible num_windows = (len(samples) - overlap) // S # Pre-calculate the Tukey window for efficiency # alpha is the ratio of tapered section to total window [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\SlamFssSifterToolGv1.py"
+  },
+  {
+    "class": "SlamFssSifterToolGv3",
+    "name_attr": "slam_fss_sifter",
+    "line_start": 4899,
+    "line_end": 5030,
+    "n_lines": 132,
+    "bases": [
+      "Tool"
+    ],
+    "description": "High-performance windowed EMD sifter. (S)elf-(A)ware of (R)ussian (D)olls: automatically unpacks nested audio dicts. If the signal is too short for multiple windows, it processes a single full-length window.",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "audio_dict",
+        "type": "any",
+        "desc": "The dictionary returned by audio_handler_tool or artifact_vault."
+      },
+      {
+        "name": "window_size",
+        "type": "integer",
+        "desc": "Size of the window (e.g., 131072)."
+      },
+      {
+        "name": "overlap",
+        "type": "integer",
+        "desc": "Overlap in samples (e.g., 4096)."
+      },
+      {
+        "name": "max_imfs",
+        "type": "integer",
+        "desc": "Limit for EMD."
+      },
+      {
+        "name": "vault_prefix",
+        "type": "string",
+        "desc": "Prefix for artifact IDs."
+      }
+    ],
+    "forward": {
+      "start": 4938,
+      "end": 5030,
+      "first_line": "def forward(self, audio_dict: any, window_size: int, overlap: int, max_imfs: int = 12, vault_prefix: str = \"SLAM-FSS\") -> str: # 1. THE SARD UNPACKING LOGIC # Handle the case where the agent wraps a vault result inside another 'audio_samples' key payload = audio_dict.get('audio_samples') # Check if the payload itself is another dictionary (The Russian Doll) if isinstance(payload, dict): [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\SlamFssSifterToolGv3.py"
+  },
+  {
+    "class": "PulseMatchToolV1",
+    "name_attr": "pulse_match_tool",
+    "line_start": 5038,
+    "line_end": 5111,
+    "n_lines": 74,
+    "bases": [
+      "Tool"
+    ],
+    "description": "High-speed temporal synchronization tool. Finds a pulse template (Time Code) within a long signal using normalized cross-correlation. Returns indices, time-drift (remainder vs Fs), and correlation coefficients.",
+    "output_type": "any",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "signal_id",
+        "type": "string",
+        "desc": "Vault ID of the long signal (DUT output)."
+      },
+      {
+        "name": "pulse_id",
+        "type": "string",
+        "desc": "Vault ID of the pulse template (Dirac pair)."
+      },
+      {
+        "name": "threshold",
+        "type": "number",
+        "desc": "Correlation threshold (e.g., 0.99) to define a match."
+      },
+      {
+        "name": "vault_filename",
+        "type": "string",
+        "desc": "Defaults to 'research_session.h5'."
+      }
+    ],
+    "forward": {
+      "start": 5058,
+      "end": 5111,
+      "first_line": "def forward(self, signal_id: str, pulse_id: str, threshold: float = 0.99, vault_filename: str = None) -> dict: # 1. Retrieve Data from Gv16 Vault sig_obj = self.vault.forward(action=\"retrieve\", artifact_id=signal_id, vault_filename=vault_filename) pulse_obj = self.vault.forward(action=\"retrieve\", artifact_id=pulse_id, vault_filename=vault_filename) s = sig_obj['samples'] m = [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\PulseMatchToolV1.py"
+  },
+  {
+    "class": "SyncAlignmentToolV1",
+    "name_attr": "sync_alignment_tool",
+    "line_start": 5114,
+    "line_end": 5180,
+    "n_lines": 67,
+    "bases": [
+      "Tool"
+    ],
+    "description": "Corrects manual alignment errors between MATLAB reference (L) and ADC capture (R). Finds the precise sample lag and returns a 'Realigned' view of the signal.",
+    "output_type": "any",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "artifact_id",
+        "type": "string",
+        "desc": "The stereo artifact ID (L=Ref, R=DUT)."
+      },
+      {
+        "name": "search_window_ms",
+        "type": "number",
+        "desc": "Window to search for alignment (e.g., 5.0 for 5ms)."
+      }
+    ],
+    "forward": {
+      "start": 5131,
+      "end": 5180,
+      "first_line": "def forward(self, artifact_id: str, search_window_ms: float = 5.0) -> dict: # 1. Retrieve the stereo data data = self.vault.forward(action=\"retrieve\", artifact_id=artifact_id) samples = data['samples'] # Shape (N, 2) Fs = data['metadata'].get('sample_rate', 192000) ref_sig = samples[:, 0] dut_sig = samples[:, 1] # 2. Find the first Coarse Anchor in the Reference (L) # We look for the Dirac [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\SyncAlignmentToolV1.py"
+  },
+  {
+    "class": "SyncAlignmentToolV2",
+    "name_attr": "sync_alignment_tool",
+    "line_start": 5186,
+    "line_end": 5262,
+    "n_lines": 77,
+    "bases": [
+      "Tool"
+    ],
+    "description": "Precision alignment tool. Uses the SECOND Dirac pulse as a Master Anchor to avoid boundary effects at the signal origin. Corrects manual alignment errors between Ref (L) and DUT (R).",
+    "output_type": "any",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "artifact_id",
+        "type": "string",
+        "desc": "Stereo artifact ID (L=Ref, R=DUT)."
+      },
+      {
+        "name": "search_window_ms",
+        "type": "number",
+        "desc": "Search radius (e.g., 10.0ms)."
+      }
+    ],
+    "forward": {
+      "start": 5204,
+      "end": 5262,
+      "first_line": "def forward(self, artifact_id: str, search_window_ms: float = 10.0) -> dict: # 1. Retrieve Data data = self.vault.forward(action=\"retrieve\", artifact_id=artifact_id) samples = data['samples'] Fs = data['metadata'].get('sample_rate', 192000) ref_sig = samples[:, 0] dut_sig = samples[:, 1] # 2. Locate the first TWO anchors in Reference (L) # We use a simple peak detector with a distance [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\SyncAlignmentToolV2.py"
+  },
+  {
+    "class": "SavePlotTool",
+    "name_attr": "save_plot",
+    "line_start": 5274,
+    "line_end": 5298,
+    "n_lines": 25,
+    "bases": [
+      "Tool"
+    ],
+    "description": "Saves the currently active Matplotlib plot to a file in the secure 'plots' directory.",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "output_filename",
+        "type": "string",
+        "desc": "The desired filename for the output PNG."
+      }
+    ],
+    "forward": {
+      "start": 5288,
+      "end": 5298,
+      "first_line": "def forward(self, output_filename: str) -> str: if not output_filename.lower().endswith('.png'): return \"Error: The output_filename must end with .png.\" full_path = os.path.join(self.safe_dir, os.path.basename(output_filename)) safe_path = full_path.replace('\\\\', '/') try: plt.savefig(safe_path) plt.close('all') return f\"Successfully saved plot to {full_path}\" except Exception as e: return [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\SavePlotTool.py"
+  },
+  {
+    "class": "RVGTool",
+    "name_attr": "random_variate_generator",
+    "line_start": 5401,
+    "line_end": 5479,
+    "n_lines": 79,
+    "bases": [
+      "Tool"
+    ],
+    "description": "Generates lists of pseudo-random numbers from specified statistical distributions. It uses a high-precision Linear Congruential Generator (LCG) as its foundation. Available distributions: 'uniform', 'normal', 'exponential'.",
+    "output_type": "object",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "distribution",
+        "type": "string",
+        "desc": "The name of the probability distribution to sample from. Supported: 'uniform', 'normal', 'exponential'."
+      },
+      {
+        "name": "size",
+        "type": "integer",
+        "desc": "The number of random numbers to generate."
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "desc": "An integer used to initialize the random number generator. Using the same seed will produce the exact same sequence of n…"
+      },
+      {
+        "name": "distribution_params",
+        "type": "object",
+        "desc": "A dictionary of parameters specific to the chosen distribution. For 'normal', use {'mu': <mean>, 'sigma': <standard_devi…"
+      }
+    ],
+    "forward": {
+      "start": 5447,
+      "end": 5479,
+      "first_line": "def forward(self, distribution: str, size: int, seed: int = None, distribution_params: dict = None): if distribution_params is None: distribution_params = {} try: # If a new seed is provided, re-initialize the generator for this specific call if seed is not None: logging.info(f\"Re-initializing RVGTool with provided seed: {seed}\") temp_lcg = LCG(m=self.m, a=self.a, c=self.c, seed=seed, [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\RVGTool.py"
+  },
+  {
+    "class": "LCSAnalyzerTool",
+    "name_attr": "lcs_analyzer",
+    "line_start": 5546,
+    "line_end": 5688,
+    "n_lines": 143,
+    "bases": [
+      "Tool"
+    ],
+    "description": "Calculates the Longest Common Subsequence (LCS) of two input texts. It first normalizes the texts by converting them into a sequence of root words using either lemmatization or stemming. Then, it uses an efficient algorithm to find the longest sequence of words common to both texts.",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "text1",
+        "type": "string",
+        "desc": "The first text to be analyzed."
+      },
+      {
+        "name": "text2",
+        "type": "string",
+        "desc": "The second text to be analyzed."
+      },
+      {
+        "name": "use_lemmatization",
+        "type": "boolean",
+        "desc": "If True (default), uses lemmatization for text normalization. If False, uses stemming."
+      },
+      {
+        "name": "parallel",
+        "type": "boolean",
+        "desc": "If True (default), processes the two texts in parallel to speed up normalization."
+      },
+      {
+        "name": "return_sequence",
+        "type": "boolean",
+        "desc": "If True (default), returns the actual LCS sequence of words. If False, returns only its length."
+      }
+    ],
+    "forward": {
+      "start": 5663,
+      "end": 5688,
+      "first_line": "def forward(self, text1: str, text2: str, use_lemmatization: bool = True, parallel: bool = True, return_sequence: bool = True) -> str: \"\"\"Executes the LCS analysis.\"\"\" # Process texts if parallel: words1, words2 = self._process_texts_parallel([text1, text2], use_lemmatization) else: processor = _TextProcessor(LCSAnalyzerTool._nlp_spacy, LCSAnalyzerTool._nltk_stopwords, use_lemmatization) [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\LCSAnalyzerTool.py"
+  },
+  {
+    "class": "ListBPFunctionsTool",
+    "name_attr": "list_bulletproof_functions",
+    "line_start": 6385,
+    "line_end": 6443,
+    "n_lines": 59,
+    "bases": [
+      "Tool"
+    ],
+    "description": "\n    Lists all available standard optimization functions stored in the internal BULLETPROOF library.\n    Use this to discover available test functions (like 'mogadish', 'schwefel', 'cross_in_tray')\n    before running an optimizer.\n    ",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "verbose",
+        "type": "boolean",
+        "desc": "If True (default), returns details (bounds, global min, description). If False, returns only names."
+      }
+    ],
+    "forward": {
+      "start": 6406,
+      "end": 6443,
+      "first_line": "def forward(self, verbose: bool = True): # Access the global dictionary safely # This looks for the variable defined in your main script bp_dict = globals().get('BULLETPROOF_FUNCTIONS', {}) if not bp_dict: return \"Error: The BULLETPROOF_FUNCTIONS library is empty or could not be found in the global scope.\" if verbose is None: verbose = True report = [\"📚 **AVAILABLE OPTIMIZATION FUNCTIONS** [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\ListBPFunctionsTool.py"
+  },
+  {
+    "class": "GetBPFunctionCodeTool",
+    "name_attr": "get_bulletproof_function_code",
+    "line_start": 6448,
+    "line_end": 6482,
+    "n_lines": 35,
+    "bases": [
+      "Tool"
+    ],
+    "description": "\n    Retrieves the raw Python source code for a specific function from the BULLETPROOF library.\n    Use this when you need to inspect the code, modify it (e.g., convert 'numpy' logic to 'mpmath'),\n    or pass it to a tool that doesn't support automatic lookup.\n    ",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "function_name",
+        "type": "string",
+        "desc": "The name of the function to retrieve (e.g., 'mogadish', 'rastrigin')."
+      }
+    ],
+    "forward": {
+      "start": 6468,
+      "end": 6482,
+      "first_line": "def forward(self, function_name: str): bp_dict = globals().get('BULLETPROOF_FUNCTIONS', {}) clean_name = function_name.strip().lower() if clean_name not in bp_dict: return f\"Error: Function '{function_name}' not found in the library. Use 'list_bulletproof_functions' to see available options.\" data = bp_dict[clean_name] code = data.get('code', '') if not code: return f\"Error: No source code [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\GetBPFunctionCodeTool.py"
+  },
+  {
+    "class": "SimAnnealTool",
+    "name_attr": "simulated_annealing_optimizer",
+    "line_start": 6487,
+    "line_end": 6760,
+    "n_lines": 274,
+    "bases": [
+      "Tool"
+    ],
+    "description": "\n    Finds the global minimum using Simulated Annealing v2.\n    Returns the solution and saves history to a CSV.\n\n    STANDARD FUNCTIONS:\n    You can simply pass the name of a standard function in 'function_code' (e.g., \"ackley\", \"rastrigin\", \"rosenbrock\").\n    This will use pre-validated code and bounds.\n\n    CUSTOM FUNCTIONS:\n    Pass the full Python code definition: \"def objective(x): return ...\".\n\n    CRITICAL:\n    The CSV is saved in a secure area. The Plotter cannot read it directly.\n    You must read the data using `csv_2_tup_tool` and INJECT the lists into the plotting code.\n    ",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "function_code",
+        "type": "string",
+        "desc": "Either the Python code defining 'def objective(x): ...' OR the name of a standard test function (e.g., 'rastrigin')."
+      },
+      {
+        "name": "bounds",
+        "type": "object",
+        "desc": "List of tuples for min/max per dimension. Optional if using a standard function name."
+      },
+      {
+        "name": "output_filename",
+        "type": "string",
+        "desc": "Filename for history CSV (e.g., 'run1.csv'). Ends in .csv."
+      },
+      {
+        "name": "max_iterations",
+        "type": "integer",
+        "desc": "Max iterations. Defaults to 10000."
+      },
+      {
+        "name": "initial_temperature",
+        "type": "number",
+        "desc": "Starting temp. Defaults to 1000.0."
+      },
+      {
+        "name": "cooling_rate",
+        "type": "number",
+        "desc": "Cooling rate (0 < r < 1). Defaults to 0.95."
+      },
+      {
+        "name": "neighbor_type",
+        "type": "string",
+        "desc": "Strategy. Options: 'gaussian', 'uniform', 'jump'. Default: 'gaussian'."
+      },
+      {
+        "name": "schedule_type",
+        "type": "string",
+        "desc": "Schedule. Options: 'exponential', 'log', 'cauchy', 'adaptive'."
+      },
+      {
+        "name": "restart_stagnation",
+        "type": "integer",
+        "desc": "If provided, restarts/reheats after N iterations without improvement. (e.g., 500)."
+      },
+      {
+        "name": "adapt_neighbor",
+        "type": "boolean",
+        "desc": "If True (default), automatically adjusts step size. If False, uses fixed scale."
+      }
+    ],
+    "forward": {
+      "start": 6561,
+      "end": 6760,
+      "first_line": "def forward(self, function_code: str, bounds, output_filename: str, max_iterations: int = 10000, initial_temperature: float = 1000.0, cooling_rate: float = 0.95, neighbor_type: str = \"gaussian\", schedule_type: str = \"exponential\", restart_stagnation: int = None, adapt_neighbor: bool = True): try: # 0. Secure File Path if not output_filename.lower().endswith('.csv'): return f\"Error: The [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\SimAnnealTool.py"
+  },
+  {
+    "class": "SAAnalysisTool",
+    "name_attr": "sa_analysis_tool",
+    "line_start": 6770,
+    "line_end": 6922,
+    "n_lines": 153,
+    "bases": [
+      "Tool"
+    ],
+    "description": "\n    Advanced analysis of Simulated Annealing history CSV.\n    Detects convergence issues, acceptance problems, stagnation patterns,\n    and gives precise, actionable tuning recommendations (v3 — fully upgraded).\n    Supports all v2+ features: adaptive scaling, restarts, temperature logging.\n    ",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "csv_filename",
+        "type": "string",
+        "desc": "Name of the history CSV file (e.g., 'run1.csv')"
+      }
+    ],
+    "forward": {
+      "start": 6792,
+      "end": 6922,
+      "first_line": "def forward(self, csv_filename: str): if not csv_filename.lower().endswith('.csv'): return \"Error: File must end with .csv\" path = os.path.join(self.safe_dir, os.path.basename(csv_filename)) if not os.path.exists(path): return f\"Error: File not found: {path}\" try: with open(path, 'r') as f: reader = csv.DictReader(f, delimiter=';') rows = list(reader) if len(rows) < 50: return \"Not enough [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\SAAnalysisTool.py"
+  },
+  {
+    "class": "SimAnnealToolMP",
+    "name_attr": "simulated_annealing_mp",
+    "line_start": 6927,
+    "line_end": 7071,
+    "n_lines": 145,
+    "bases": [
+      "Tool"
+    ],
+    "description": "\n    High-Precision Simulated Annealing (Arbitrary Precision).\n    Uses 'mpmath' (mp) instead of 'numpy'.\n\n    CRITICAL:\n    1. The 'function_code' MUST be written for mpmath (e.g. `mp.sin`, `mp.sqrt`, `mp.mpf`).\n    2. Use `get_bulletproof_function_code` to retrieve pre-written MP code (e.g. 'mogadish_mp').\n    3. `dps` sets the decimal places (e.g. 50, 100).\n    ",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "function_code",
+        "type": "string",
+        "desc": "Python code defining 'def objective(x): ...' using mpmath."
+      },
+      {
+        "name": "bounds",
+        "type": "string",
+        "desc": "List of tuples e.g. '[(-1, 1)]' (passed as string literal)."
+      },
+      {
+        "name": "output_filename",
+        "type": "string",
+        "desc": "CSV filename."
+      },
+      {
+        "name": "dps",
+        "type": "integer",
+        "desc": "Decimal precision. Default 50."
+      },
+      {
+        "name": "max_iterations",
+        "type": "integer",
+        "desc": "Default 1000. Keep low for MP speed."
+      },
+      {
+        "name": "initial_temperature",
+        "type": "string",
+        "desc": "Start temp as string (e.g. '1.0')."
+      },
+      {
+        "name": "neighbor_scale",
+        "type": "string",
+        "desc": "Step size scale as string (e.g. '0.001')."
+      },
+      {
+        "name": "schedule_type",
+        "type": "string",
+        "desc": "Schedule. Options: 'exponential', 'log', 'fast, 'cauchy', 'adaptive', 'lundy', 'aarts', 'vfa', 'quadratic', 'cosine'. De…"
+      }
+    ],
+    "forward": {
+      "start": 6985,
+      "end": 7071,
+      "first_line": "def forward(self, function_code: str, bounds, output_filename, schedule_type='log', dps=50, max_iterations=1000, initial_temperature='1.0', neighbor_scale='0.1' ): try: # 1. Imports try: from core_mp_gpt5 import SimulatedAnnealingMP import mpmath as mp except ImportError: return \"Error: Could not find 'core_mp.py' locally.\" # 2. Secure Path if not output_filename.lower().endswith('.csv'): [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\SimAnnealToolMP.py"
+  },
+  {
+    "class": "GATool",
+    "name_attr": "genetic_algorithm_optimizer",
+    "line_start": 7090,
+    "line_end": 7277,
+    "n_lines": 188,
+    "bases": [
+      "Tool"
+    ],
+    "description": "\n    Finds the global minimum using a Real-Coded Genetic Algorithm.\n    Useful for multimodal functions where Simulated Annealing might get stuck.\n\n    OUTPUT:\n    - Returns best solution.\n    - Saves history to CSV (Generation, Best Energy, Diversity).\n\n    CRITICAL:\n    Read CSV using `csv_2_tup_tool` and INJECT data into `python_plotter`.\n    ",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "function_code",
+        "type": "string",
+        "desc": "Python code 'def objective(x): ...' OR a standard function name (e.g., 'rastrigin', 'schwefel')."
+      },
+      {
+        "name": "bounds",
+        "type": "object",
+        "desc": "Bounds e.g. [(-5, 5)]. Optional if using a standard function name."
+      },
+      {
+        "name": "output_filename",
+        "type": "string",
+        "desc": "CSV filename."
+      },
+      {
+        "name": "pop_size",
+        "type": "integer",
+        "desc": "Population size (default 50)."
+      },
+      {
+        "name": "generations",
+        "type": "integer",
+        "desc": "Max generations (default 100)."
+      },
+      {
+        "name": "mutation_rate",
+        "type": "number",
+        "desc": "Prob of mutation (0.0-1.0)."
+      },
+      {
+        "name": "crossover_rate",
+        "type": "number",
+        "desc": "Prob of crossover (0.0-1.0)."
+      }
+    ],
+    "forward": {
+      "start": 7129,
+      "end": 7277,
+      "first_line": "def forward(self, function_code, bounds, output_filename, pop_size=50, generations=100, mutation_rate=0.1, crossover_rate=0.8): # 0. Secure Path if not output_filename.lower().endswith('.csv'): return f\"Error: The output_filename '{output_filename}' must end with .csv.\" csv_path = os.path.join(self.safe_dir, os.path.basename(output_filename)) # [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\GATool.py"
+  },
+  {
+    "class": "GAAnalysisTool",
+    "name_attr": "ga_analysis_tool",
+    "line_start": 7282,
+    "line_end": 7380,
+    "n_lines": 99,
+    "bases": [
+      "Tool"
+    ],
+    "description": "\n    Analyzes 'history.csv' from the Genetic Algorithm.\n    Diagnoses 'Premature Convergence' by looking at Population Diversity vs Energy.\n    ",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "csv_filename",
+        "type": "string",
+        "desc": "Name of the history CSV file."
+      }
+    ],
+    "forward": {
+      "start": 7302,
+      "end": 7380,
+      "first_line": "def forward(self, csv_filename: str): if not csv_filename.lower().endswith('.csv'): return \"Error: .csv required\" path = os.path.join(self.safe_dir, os.path.basename(csv_filename)) if not os.path.exists(path): return \"Error: File not found\" try: delim = globals().get('csv_field_delim', ';') with open(path, 'r') as f: reader = csv.DictReader(f, delimiter=delim) rows = list(reader) if not [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\GAAnalysisTool.py"
+  },
+  {
+    "class": "GAToolMP",
+    "name_attr": "genetic_algorithm_mp",
+    "line_start": 7385,
+    "line_end": 7589,
+    "n_lines": 205,
+    "bases": [
+      "Tool"
+    ],
+    "description": "\n    High-Precision Genetic Algorithm (Arbitrary Precision).\n    Uses 'mpmath' instead of 'numpy'. Best for resolving 'Planck-scale' features.\n\n    CRITICAL:\n    1. The 'function_code' MUST be written for mpmath (e.g. `mp.sin`).\n    2. Use `get_bulletproof_function_code` or standard names (e.g., 'mogadish_mp').\n    3. `dps` sets the decimal places (e.g. 50, 100).\n    ",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "function_code",
+        "type": "string",
+        "desc": "Python code 'def objective(x): ...' OR standard name."
+      },
+      {
+        "name": "bounds",
+        "type": "object",
+        "desc": "Bounds e.g. [(-0.1, 0.1)]. Optional if using standard name."
+      },
+      {
+        "name": "output_filename",
+        "type": "string",
+        "desc": "CSV filename."
+      },
+      {
+        "name": "dps",
+        "type": "integer",
+        "desc": "Decimal precision. Default 50."
+      },
+      {
+        "name": "pop_size",
+        "type": "integer",
+        "desc": "Population size."
+      },
+      {
+        "name": "generations",
+        "type": "integer",
+        "desc": "Max generations."
+      },
+      {
+        "name": "mutation_rate",
+        "type": "number",
+        "desc": "Prob of mutation."
+      },
+      {
+        "name": "crossover_rate",
+        "type": "number",
+        "desc": "Prob of crossover."
+      }
+    ],
+    "forward": {
+      "start": 7443,
+      "end": 7589,
+      "first_line": "def forward(self, function_code, bounds, output_filename, dps=50, pop_size=50, generations=100, mutation_rate=0.1, crossover_rate=0.8): # 0. Secure Path if not output_filename.lower().endswith('.csv'): return f\"Error: The output_filename '{output_filename}' must end with .csv.\" csv_path = os.path.join(self.safe_dir, os.path.basename(output_filename)) # 1. Imports try: from genetic_mp import [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\GAToolMP.py"
+  },
+  {
+    "class": "DEToolMP",
+    "name_attr": "differential_evolution_mp",
+    "line_start": 7849,
+    "line_end": 8041,
+    "n_lines": 193,
+    "bases": [
+      "Tool"
+    ],
+    "description": "High-precision Differential Evolution with Island Model using pure mpmath.",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "function_code",
+        "type": "string",
+        "desc": "A string of Python code defining the objective function to be minimized. The function must be named 'objective' and acce…"
+      },
+      {
+        "name": "bounds",
+        "type": "object",
+        "desc": "A list of tuples, where each tuple defines the lower and upper bounds for a dimension. Example: [(-5, 5), (-5, 5)]"
+      },
+      {
+        "name": "output_filename",
+        "type": "string",
+        "desc": "The base filename for the output CSV and plot files. Must end with .csv."
+      },
+      {
+        "name": "dps",
+        "type": "integer",
+        "desc": "Decimal Precision Setting (dps) for mpmath arbitrary-precision calculations. Default is 50."
+      },
+      {
+        "name": "num_islands",
+        "type": "integer",
+        "desc": "The number of separate populations (islands) to evolve. Default is 4."
+      },
+      {
+        "name": "island_pop_size",
+        "type": "integer",
+        "desc": "The size of the population on each individual island. Default is 40."
+      },
+      {
+        "name": "generations",
+        "type": "integer",
+        "desc": "The total number of generations to run the evolution for. Default is 200."
+      },
+      {
+        "name": "migration_interval",
+        "type": "integer",
+        "desc": "The number of generations between migration events, where islands exchange individuals. Default is 20."
+      }
+    ],
+    "forward": {
+      "start": 7902,
+      "end": 8041,
+      "first_line": "def forward(self, function_code, bounds, output_filename, dps=50, num_islands=4, island_pop_size=40, generations=200, migration_interval=20): # --- START OF DIAGNOSTIC CODE --- import mpmath as mp print(f\"--- DIAGNOSTIC: mpmath module loaded from: {mp.__file__} ---\") if not output_filename.lower().endswith('.csv'): return \"Error: output_filename must end with .csv\" csv_path = [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\DEToolMP.py"
+  },
+  {
+    "class": "BOToolGv1_v3_2_0",
+    "name_attr": "bayesian_optimizer",
+    "line_start": 8067,
+    "line_end": 8302,
+    "n_lines": 236,
+    "bases": [
+      "Tool"
+    ],
+    "description": "\n    Finds the global minimum using Bayesian Optimization (Gaussian Processes).\n    Best for EXPENSIVE functions where you can only afford a few iterations (e.g. < 50).\n\n    OUTPUT:\n    - Returns best solution found.\n    - Saves history to CSV.\n\n    CRITICAL:\n    - Uses `bayesian-optimization` package (v3.2.0+ compatible).\n    - Read CSV using `csv_2_tup_tool` and INJECT data into `python_plotter`.\n    ",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "function_code",
+        "type": "string",
+        "desc": "Python code 'def objective(x): ...' OR a standard function name (e.g., 'rastrigin', 'schwefel')."
+      },
+      {
+        "name": "bounds",
+        "type": "object",
+        "desc": "List of tuples e.g. [(-5, 5)]. Optional if using a standard function name."
+      },
+      {
+        "name": "output_filename",
+        "type": "string",
+        "desc": "Filename for history CSV (e.g., 'bo_run1.csv'). Ends in .csv."
+      },
+      {
+        "name": "n_iter",
+        "type": "integer",
+        "desc": "Total optimization steps (after init). Default 20."
+      },
+      {
+        "name": "init_points",
+        "type": "integer",
+        "desc": "Number of random exploration steps before model starts. Default 5."
+      },
+      {
+        "name": "acq_type",
+        "type": "string",
+        "desc": "Acquisition: 'ucb' (Upper Confidence Bound), 'ei' (Expected Improvement), or 'poi' (Probability Of Improvement). Default…"
+      },
+      {
+        "name": "kappa",
+        "type": "number",
+        "desc": "Exploration weight for UCB. Higher (e.g. 5.0)=Explore; Lower (e.g. 1.0)=Exploit. Default 2.5."
+      },
+      {
+        "name": "xi",
+        "type": "number",
+        "desc": "Exploration weight for EI. Default 0.0."
+      }
+    ],
+    "forward": {
+      "start": 8127,
+      "end": 8302,
+      "first_line": "def forward(self, function_code: str, bounds, output_filename: str, n_iter: int = 20, init_points: int = 5, acq_type: str = 'ucb', kappa: float = 2.5, xi: float = 0.0): try: # 2. Secure File Path if not output_filename.lower().endswith('.csv'): return f\"Error: The output_filename '{output_filename}' must end with .csv.\" csv_path = os.path.join(self.safe_dir, [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\BOToolGv1_v3_2_0.py"
+  },
+  {
+    "class": "BOAnalysisTool",
+    "name_attr": "bo_analysis_tool",
+    "line_start": 8307,
+    "line_end": 8390,
+    "n_lines": 84,
+    "bases": [
+      "Tool"
+    ],
+    "description": "\n    Analyzes 'optimization_history.csv' from Bayesian Optimization.\n    Diagnoses Exploration (Variance) vs Exploitation (Convergence).\n    ",
+    "output_type": "string",
+    "inputs_mode": "literal",
+    "inputs": [
+      {
+        "name": "csv_filename",
+        "type": "string",
+        "desc": "Name of the history CSV file."
+      }
+    ],
+    "forward": {
+      "start": 8327,
+      "end": 8390,
+      "first_line": "def forward(self, csv_filename: str): if not csv_filename.lower().endswith('.csv'): return \"Error: .csv required\" path = os.path.join(self.safe_dir, os.path.basename(csv_filename)) if not os.path.exists(path): return \"Error: File not found\" try: delim = globals().get('csv_field_delim', ';') with open(path, 'r') as f: reader = csv.DictReader(f, delimiter=delim) rows = list(reader) if not [...]"
+    },
+    "source_file": "D:\\Source\\hermes-dir\\smolagent_tools_extract\\tools\\BOAnalysisTool.py"
+  }
+]

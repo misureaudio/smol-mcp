@@ -1,0 +1,1559 @@
+{
+  "SafeOpenTool": {
+    "name": "safe_open_tool",
+    "description": "This is a tool that opens a file replacing open().\n                     It enforces security by forcing file access to occur strictly within the designated safe directory.\n                     Any directory paths provided in 'file_name' will be stripped.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "file_name": {
+          "type": "string",
+          "description": "The name of the file to be opened. directory components are ignored; the file is looked up in the safe directory."
+        },
+        "mode": {
+          "type": "string",
+          "description": "'rt' for text files, 'rb' for binary files (pdf, docx...)"
+        }
+      },
+      "required": [
+        "file_name",
+        "mode"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "object"
+  },
+  "AudioHandlerTool": {
+    "name": "audio_handler_tool",
+    "description": "This tool loads and saves .wav or .flac audio files within designated secure directories.\n\n    Operations:\n    - 'read': Returns a dictionary containing 'audio_samples' (as a numpy array) and 'metadata'.\n      Reads strictly from the READ directory.\n    - 'write': Saves a numpy array of audio samples to a file with specific quantization.\n      Writes strictly to the WRITE directory.\n\n    IMPORTANT: The 'read' output contains raw massive arrays. NEVER try to print the return value\n    of this tool as an agent action or in the final answer. Always assign it to a variable.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "file_name": {
+          "type": "string",
+          "description": "The name of the file (wav/flac). Directory components are stripped."
+        },
+        "action": {
+          "type": "string",
+          "description": "Either 'read' or 'write'."
+        },
+        "audio_data": {
+          "description": "For 'write' mode only. A numpy array containing the audio samples."
+        },
+        "sample_rate": {
+          "type": "integer",
+          "description": "For 'write' mode only. The sampling rate of the audio."
+        },
+        "quantization": {
+          "type": "integer",
+          "description": "Bit depth for saving files. Allowed: [16, 24, 32] for .wav, [16, 24] for .flac."
+        }
+      },
+      "required": [
+        "file_name",
+        "action",
+        "audio_data",
+        "sample_rate",
+        "quantization"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "any"
+  },
+  "TFDTool": {
+    "name": "time_frequency_distribution_tool",
+    "description": "\n    Computes Time-Frequency Distributions (Cohen's Class) or Time-Scale Distributions (Affine Class).\n\n    Supported Methods:\n    - 'wvd': Wigner-Ville (Standard, high resolution)\n    - 'choi_williams': Reduces interference (good for speech/bio)\n    - 'rihaczek': Complex energy distribution\n    - 'born_jordan': Preserves time support\n    - 'zam': Cone-shaped kernel (ZAM), good for non-stationary\n    - 'bertrand': Unitary Affine (Hyperbolic chirps)\n    - 'unterberger': Active Wideband\n    - 'affine': Scalogram analysis (Wavelet-like)\n\n    Input: Requires the dictionary output from AudioHandlerTool.\n    Output: Generates an ACTIVE Matplotlib figure. Returns a recommendation to use 'save_plot' or the raw data for advanced post-processing.\n    ",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "audio_dict": {
+          "description": "The dictionary returned by AudioHandlerTool (must contain 'audio_samples' and 'metadata')."
+        },
+        "method": {
+          "type": "string",
+          "description": "Method: 'wvd', 'choi_williams', 'rihaczek', 'born_jordan', 'zam', 'bertrand', 'unterberger', 'affine'."
+        },
+        "channel": {
+          "type": "integer",
+          "description": "Channel index to analyze if audio is multi-channel. Default 0."
+        },
+        "param": {
+          "type": "number",
+          "description": "Kernel parameter (Sigma for Choi-Williams, Alpha for Bertrand/ZAM). Default varies by method."
+        },
+        "start_sample": {
+          "type": "integer",
+          "description": "The starting sample index for the analysis window. Default is 0."
+        },
+        "end_sample": {
+          "type": "integer",
+          "description": "The ending sample index for the analysis window. If None, uses the end of the signal."
+        },
+        "force_computation": {
+          "type": "boolean",
+          "description": "If True, overrides the O(N^2) complexity safety check for long signals (>3000 samples). Default is False."
+        },
+        "return_data": {
+          "type": "boolean",
+          "description": "If True, returns a dictionary with raw matrix and axes instead of saving a plot. Default False."
+        }
+      },
+      "required": [
+        "audio_dict",
+        "method",
+        "channel",
+        "param",
+        "start_sample",
+        "end_sample",
+        "force_computation",
+        "return_data"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "any"
+  },
+  "TFDDataTool": {
+    "name": "tfd_data_tool",
+    "description": "\n    Manages the storage and retrieval of raw Time-Frequency Analysis data.\n    - 'save': Saves the TFD data dictionary to a compressed .npz file.\n    - 'load': Loads a .npz file back into a dictionary for processing.\n    ",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "description": "'save' or 'load'"
+        },
+        "filename": {
+          "type": "string",
+          "description": "The filename (e.g., 'analysis_results'). Extension .npz added automatically."
+        },
+        "data_dict": {
+          "description": "The dictionary returned by TFDTool (required for 'save')."
+        }
+      },
+      "required": [
+        "action",
+        "filename",
+        "data_dict"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "any"
+  },
+  "LogFreqPlotTool": {
+    "name": "log_freq_plot_tool",
+    "description": "\n    Generates a Log-Frequency (Octave-scale) Spectrogram from raw TFD data.\n    Useful for visualizing musical tones, speech, or wideband signals.\n    Resamples the linear Time-Frequency matrix onto a logarithmic frequency grid.\n\n    Returns a recommendation to use 'save_plot'.\n    ",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "tfd_data": {
+          "description": "The dictionary containing 'tfd_matrix' and 'axes' (from TFDTool or TFDDataTool)."
+        },
+        "f_min": {
+          "type": "number",
+          "description": "Minimum frequency for the log axis (Hz). Default 20."
+        },
+        "f_max": {
+          "type": "number",
+          "description": "Maximum frequency (Hz). Default is Nyquist (Fs/2)."
+        },
+        "num_bins": {
+          "type": "integer",
+          "description": "Height of the resulting image in pixels/bins. Default 500."
+        }
+      },
+      "required": [
+        "tfd_data",
+        "f_min",
+        "f_max",
+        "num_bins"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  },
+  "EMDTool": {
+    "name": "emd_tool",
+    "description": "Performs Empirical Mode Decomposition (EMD) on a specific audio channel. Returns a 2D NumPy array of the Intrinsic Mode Functions (IMFs). The output shape is (number_of_samples, number_of_imfs). ",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "audio_dict": {
+          "description": "The dictionary returned by AudioHandlerTool (containing 'audio_samples' and 'metadata')."
+        },
+        "channel": {
+          "type": "integer",
+          "description": "The channel index to analyze if audio is multi-channel. Default is 0."
+        },
+        "max_imfs": {
+          "type": "integer",
+          "description": "Optional: The maximum number of IMFs to extract."
+        }
+      },
+      "required": [
+        "audio_dict",
+        "channel",
+        "max_imfs"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "any"
+  },
+  "EMDToolGv2": {
+    "name": "emd_tool",
+    "description": "Performs Empirical Mode Decomposition (EMD) on a specific audio channel. Returns a 2D NumPy array of the Intrinsic Mode Functions (IMFs). The output shape is (number_of_samples, number_of_imfs). ",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "audio_dict": {
+          "description": "The dictionary returned by AudioHandlerTool (containing 'audio_samples' and 'metadata')."
+        },
+        "channel": {
+          "type": "integer",
+          "description": "The channel index to analyze if audio is multi-channel. Default is 0."
+        },
+        "max_imfs": {
+          "type": "integer",
+          "description": "Optional: The maximum number of IMFs to extract."
+        }
+      },
+      "required": [
+        "audio_dict",
+        "channel",
+        "max_imfs"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "any"
+  },
+  "CreateChromaDBTool": {
+    "name": "create_chromadb",
+    "description": "Creates a new, empty ChromaDB vector database at a specified path. If a database already exists at the path, it will be removed and replaced.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "db_path": {
+          "type": "string",
+          "description": "The file system path where the ChromaDB database will be created. Defaults to './chroma_db_mem0'."
+        },
+        "embedder_model": {
+          "type": "string",
+          "description": "The sentence-transformer model to configure for the database. Defaults to 'sentence-transformers/distiluse-base-multilin…"
+        }
+      },
+      "required": [
+        "db_path",
+        "embedder_model"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  },
+  "PopulateChromaDBTool": {
+    "name": "populate_chromadb",
+    "description": "Reads a markdown dialog file, extracts memories using an LLM, and populates a specified ChromaDB collection with those memories.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "db_path": {
+          "type": "string",
+          "description": "Path to the ChromaDB database to populate."
+        },
+        "markdown_file": {
+          "type": "string",
+          "description": "Path to the markdown dialog file containing the conversation."
+        },
+        "collection_name": {
+          "type": "string",
+          "description": "The name of the collection to add the memories to."
+        },
+        "user_id": {
+          "type": "string",
+          "description": "A user ID to be stored in the metadata for each memory."
+        },
+        "embedder_model": {
+          "type": "string",
+          "description": "The sentence-transformer model to use for embedding. Defaults to 'sentence-transformers/distiluse-base-multilingual-case…"
+        }
+      },
+      "required": [
+        "db_path",
+        "markdown_file",
+        "collection_name",
+        "user_id",
+        "embedder_model"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  },
+  "QueryChromaDBTool": {
+    "name": "query_chromadb",
+    "description": "Queries a ChromaDB database. It can perform several actions: 'list_collections': Lists all available collections. 'get_all_memories': Retrieves all memories from a specific collection. 'search': Performs a similarity search for a query within a collection.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "db_path": {
+          "type": "string",
+          "description": "Path to the ChromaDB database to query."
+        },
+        "action": {
+          "type": "string",
+          "description": "The action to perform. Supported values: 'list_collections', 'get_all_memories', 'search'."
+        },
+        "collection_name": {
+          "type": "string",
+          "description": "The name of the collection for 'get_all_memories' and 'search' actions."
+        },
+        "query_text": {
+          "type": "string",
+          "description": "The search query text for the 'search' action."
+        },
+        "n_results": {
+          "type": "integer",
+          "description": "The number of results to return for a 'search' action. Defaults to 5."
+        },
+        "embedder_model": {
+          "type": "string",
+          "description": "The sentence-transformer model for embedding the search query. Defaults to 'sentence-transformers/distiluse-base-multili…"
+        }
+      },
+      "required": [
+        "db_path",
+        "action",
+        "collection_name",
+        "query_text",
+        "n_results",
+        "embedder_model"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "object"
+  },
+  "ManageChromaDBTool": {
+    "name": "manage_chromadb",
+    "description": "Manages a ChromaDB database with query and delete functions. Query actions: 'list_collections', 'get_all_memories', 'search'. Delete actions: 'delete_collection', 'delete_memories_by_ids', 'delete_memories_by_metadata'.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "db_path": {
+          "type": "string",
+          "description": "Path to the ChromaDB database to manage."
+        },
+        "action": {
+          "type": "string",
+          "description": "The action to perform. See tool description for supported actions."
+        },
+        "collection_name": {
+          "type": "string",
+          "description": "The target collection name. Required for most actions."
+        },
+        "query_text": {
+          "type": "string",
+          "description": "The search query text for the 'search' action."
+        },
+        "n_results": {
+          "type": "integer",
+          "description": "Number of results for 'search' action. Defaults to 5."
+        },
+        "memory_ids": {
+          "type": "object",
+          "description": "A list of memory string IDs to delete. Required for 'delete_memories_by_ids'."
+        },
+        "metadata_filter": {
+          "type": "object",
+          "description": "A dictionary for metadata filtering (e.g., {'user_id': 'alice'}). Required for 'delete_memories_by_metadata'."
+        },
+        "embedder_model": {
+          "type": "string",
+          "description": "The sentence-transformer model for search query embedding. Defaults to 'sentence-transformers/distiluse-base-multilingua…"
+        }
+      },
+      "required": [
+        "db_path",
+        "action",
+        "collection_name",
+        "query_text",
+        "n_results",
+        "memory_ids",
+        "metadata_filter",
+        "embedder_model"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "object"
+  },
+  "AnalyzeChromaDBTool": {
+    "name": "analyze_chromadb",
+    "description": "Finds and verifies mem0 ChromaDB structures. Actions: 'find' to search for potential databases in a path, 'verify' to check if a specific path is a valid ChromaDB structure.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "description": "The action to perform: 'find' or 'verify'."
+        },
+        "search_path": {
+          "type": "string",
+          "description": "The directory path to start the search from (for 'find' action)."
+        },
+        "db_path": {
+          "type": "string",
+          "description": "The path to a potential ChromaDB directory to verify (for 'verify' action)."
+        }
+      },
+      "required": [
+        "action",
+        "search_path",
+        "db_path"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "object"
+  },
+  "MyGoogleSearchTool": {
+    "name": "web_search",
+    "description": "Performs a web search based on your query (think a Google search) then returns the top search results.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "The search query to perform."
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  },
+  "SearXNGSearchTool": {
+    "name": "web_searXNG",
+    "description": "Performs a web search based on your query (think a Google search) then returns the top search results.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "query": {
+          "type": "string",
+          "description": "The search query to perform."
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  },
+  "PrologTool": {
+    "name": "prolog_tool",
+    "description": "Interface to SWI-Prolog. Supports consulting facts/rules, running queries, clearing the knowledge base, saving/loading KB to/from files, and auto-saving on close. File operations are restricted to a safe directory.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "description": "Operation: 'consult', 'query', 'clear', 'save', 'load'."
+        },
+        "program": {
+          "type": "string",
+          "description": "Prolog clauses (facts/rules). Required for 'consult'."
+        },
+        "query_string": {
+          "type": "string",
+          "description": "Prolog query to execute. Required for 'query'."
+        },
+        "find_all": {
+          "type": "boolean",
+          "description": "For 'query': return all solutions (True) or just the first (False)."
+        },
+        "reset_on_query": {
+          "type": "boolean",
+          "description": "If True, resets the KB before each query."
+        },
+        "reset_on_consult": {
+          "type": "boolean",
+          "description": "If True, resets the KB before consulting new facts/rules."
+        },
+        "reset_on_all": {
+          "type": "boolean",
+          "description": "If True, resets the KB before BOTH consult and query."
+        },
+        "save_to": {
+          "type": "string",
+          "description": "Path to save the current KB (Prolog .pl file). Will be saved inside the safe directory."
+        },
+        "load_from": {
+          "type": "string",
+          "description": "Path to load a KB from a Prolog .pl file. Must exist inside the safe directory."
+        }
+      },
+      "required": [
+        "action",
+        "program",
+        "query_string",
+        "find_all",
+        "reset_on_query",
+        "reset_on_consult",
+        "reset_on_all",
+        "save_to",
+        "load_from"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "object"
+  },
+  "PDFSplitterToolGv1": {
+    "name": "pdf_splitter_tool",
+    "description": "This tool extracts text from a PDF (local or URL) and splits it into Markdown files.\n                     It preserves formatting and tables. Files are saved in the safe directory.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "file_name": {
+          "type": "string",
+          "description": "The pathname or URL of the PDF file to be split."
+        },
+        "pages_per_chunk": {
+          "type": "integer",
+          "description": "Maximum number of pages per generated Markdown file."
+        }
+      },
+      "required": [
+        "file_name",
+        "pages_per_chunk"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  },
+  "PDFSplitterToolGv2": {
+    "name": "pdf_splitter_tool",
+    "description": "Splits a PDF into Markdown files. It ensures chunks do not break\n                     in the middle of a paragraph by splitting at double newlines.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "file_name": {
+          "type": "string",
+          "description": "The pathname or URL of the PDF file to be split."
+        },
+        "pages_per_chunk": {
+          "type": "integer",
+          "description": "Maximum number of pages per generated Markdown file."
+        }
+      },
+      "required": [
+        "file_name",
+        "pages_per_chunk"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  },
+  "PDF2TXTTool": {
+    "name": "pdf_2_txt_tool",
+    "description": "This is a tool that extracts the text from a PDF file.\n                     If the file is not in a safe directory it raises an exception.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "file_name": {
+          "type": "string",
+          "description": "The pathname or URL of the PDF file to be opened."
+        }
+      },
+      "required": [
+        "file_name"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  },
+  "PDFAnalyzerTool": {
+    "name": "pdf_analyzer_tool",
+    "description": "Analyzes a PDF file to determine the best text extraction method (direct vs. OCR).\n                     It provides a detailed report on text content, images, and text readability.\n                     The file must be located in the secure upload directory.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "pdf_filename": {
+          "type": "string",
+          "description": "The name of the PDF file (e.g., 'report.pdf') located in the safe upload directory."
+        },
+        "min_readable_ratio": {
+          "type": "number",
+          "description": "The minimum ratio of readable characters (0.0 to 1.0) to consider text directly extractable. Defaults to 0.7."
+        },
+        "sample_pages": {
+          "type": "integer",
+          "description": "The number of pages to sample for a quick analysis of large documents. Defaults to 3."
+        }
+      },
+      "required": [
+        "pdf_filename",
+        "min_readable_ratio",
+        "sample_pages"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  },
+  "OCR2TXTTool": {
+    "name": "ocr_2_txt_tool",
+    "description": "Extracts text from PDF files using Optical Character Recognition (OCR).\n                     This tool is essential for scanned documents, PDFs containing only images, or when PDFAnalyzerTool recommends 'OCR_REQUIRED' or 'HYBRID'.\n                     It is more resource-intensive than the standard pdf_2_txt_tool.\n                     The file must be located in the secure upload directory.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "file_name": {
+          "type": "string",
+          "description": "The name of the PDF file (e.g., 'scanned_report.pdf') located in the safe upload directory."
+        },
+        "language": {
+          "type": "string",
+          "description": "The language of the text in the document (e.g., 'eng' for English, 'ita' for Italian, 'fra' for French). Defaults to 'en…"
+        }
+      },
+      "required": [
+        "file_name",
+        "language"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  },
+  "CSV2TUPTool": {
+    "name": "csv_2_tup_tool",
+    "description": "This is a tool that extracts a tuple from a CSV file.\n                     If the file is not in a safe directory it raises an exception.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "file_name": {
+          "type": "string",
+          "description": "The name of the file to be opened."
+        }
+      },
+      "required": [
+        "file_name"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "object"
+  },
+  "LLM_Tool": {
+    "name": "llm_tool",
+    "description": "This is a tool that accepts a question (and possibly a list of images) and returns an answer.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "question": {
+          "type": "string",
+          "description": "The question to be answered. If it contains web URLs pointing to images, they must be explored with this tool, rather th…"
+        },
+        "list_of_images": {
+          "type": "object",
+          "description": "An optional list, possibly empty, containing a mix of base64-encoded .JPG or .PNG images, paths to local image files, an…"
+        }
+      },
+      "required": [
+        "question",
+        "list_of_images"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  },
+  "Summarization_Tool": {
+    "name": "summarization_tool",
+    "description": "This is a tool that summarizes the input (a long multi-line string)",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "long_text": {
+          "type": "string",
+          "description": "The text to be summarized."
+        },
+        "list_of_images": {
+          "type": "object",
+          "description": "An optional list..."
+        }
+      },
+      "required": [
+        "long_text",
+        "list_of_images"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  },
+  "Translation_Tool": {
+    "name": "translation_tool",
+    "description": "This is a tool that translates the input (a long multi-line string) from one language to another.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "original_language": {
+          "type": "string",
+          "description": "The original language of the text."
+        },
+        "target_language": {
+          "type": "string",
+          "description": "The target language for the translation."
+        },
+        "long_text": {
+          "type": "string",
+          "description": "The text to be summarized."
+        },
+        "list_of_images": {
+          "type": "object",
+          "description": "An optional list..."
+        }
+      },
+      "required": [
+        "original_language",
+        "target_language",
+        "long_text",
+        "list_of_images"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  },
+  "MarkdownToPDFTool": {
+    "name": "markdown_to_pdf_tool",
+    "description": "Converts a given Markdown string into a PDF file.\n                     It allows specifying the paper size, page orientation, and margin.\n                     The resulting PDF is saved in a secure directory.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "markdown_content": {
+          "type": "string",
+          "description": "The Markdown content to be converted into a PDF."
+        },
+        "output_filename": {
+          "type": "string",
+          "description": "The desired filename for the output PDF (e.g., 'report.pdf'). It must end with .pdf."
+        },
+        "paper_format": {
+          "type": "string",
+          "description": "The paper size. Common values are 'a4', 'a3', 'letter', 'legal', 'a5'. Defaults to 'a4'."
+        },
+        "orientation": {
+          "type": "string",
+          "description": "The page orientation. Must be either 'portrait' or 'landscape'. Defaults to 'portrait'."
+        },
+        "margin": {
+          "type": "string",
+          "description": "The page margin as a string (e.g., '1in', '2cm', '0.75in'). Defaults to '1in'."
+        }
+      },
+      "required": [
+        "markdown_content",
+        "output_filename",
+        "paper_format",
+        "orientation",
+        "margin"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  },
+  "ArtifactVaultToolGv10": {
+    "name": "artifact_vault",
+    "description": "A persistent HDF5 repository. Supports 'stash', 'retrieve', 'catalog', and 'update'. Retrieval is 'Flattened': for complex artifacts (like EMD), you can access signals directly via keys like result['original_signal'] or result['imf_matrix'].",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "description": "Operation: 'stash', 'retrieve', 'catalog', or 'update'."
+        },
+        "artifact_id": {
+          "type": "string",
+          "description": "Unique ID for the artifact."
+        },
+        "data": {
+          "description": "Data to stash (Numpy array). Not needed for 'update'."
+        },
+        "access_hint": {
+          "type": "string",
+          "description": "Instructional Manual: What the data represents and how to index it."
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Dictionary of parameters/annotations."
+        },
+        "vault_filename": {
+          "type": "string",
+          "description": "Vault filename (defaults to 'research_session.h5')."
+        }
+      },
+      "required": [
+        "action",
+        "artifact_id",
+        "data",
+        "access_hint",
+        "metadata",
+        "vault_filename"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "any"
+  },
+  "ArtifactVaultToolGv16": {
+    "name": "artifact_vault",
+    "description": "A unified HDF5 repository for DSP data. Supports four actions:\n- 'catalog': Returns a lite list of all artifact IDs.\n- 'inspect': Returns deep metadata and shapes for a specific ID or wildcard pattern (e.g. 'EMD*').\n- 'retrieve': Returns the data. Complex artifacts (EMD) are 'Flattened' for direct access to signals.\n- 'stash': Saves numpy arrays or dictionaries with metadata into the vault.- 'audit': Scans all artifacts matching a prefix and returns a summary of their dataset shapes.    Use 'audit' for global complexity analysis without looping manually.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "description": "Operation: 'catalog', 'inspect', 'retrieve', or 'stash'."
+        },
+        "artifact_id": {
+          "type": "string",
+          "description": "Unique ID or pattern (required for retrieve, stash, inspect)."
+        },
+        "data": {
+          "description": "Data to stash (Numpy array or dict)."
+        },
+        "access_hint": {
+          "type": "string",
+          "description": "Stash only: Instructions on what the data represents."
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Stash only: Dictionary of annotations."
+        },
+        "vault_filename": {
+          "type": "string",
+          "description": "Vault filename (defaults to 'research_session.h5')."
+        }
+      },
+      "required": [
+        "action",
+        "artifact_id",
+        "data",
+        "access_hint",
+        "metadata",
+        "vault_filename"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "any"
+  },
+  "ArtifactVaultInspectorToolGv2": {
+    "name": "artifact_inspector",
+    "description": "Inspects the internal structure of the HDF5 vault. Returns a tree-like summary of artifact IDs, dataset shapes, dtypes, and metadata. Essential for 'scouting' the vault before retrieving large arrays.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "vault_filename": {
+          "type": "string",
+          "description": "The name of the vault file (default: 'research_session.h5')."
+        }
+      },
+      "required": [
+        "vault_filename"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  },
+  "ArtifactVaultInspectorToolGv3": {
+    "name": "artifact_inspector",
+    "description": "Inspects the vault. If 'artifact_id' is omitted, returns a lite list of IDs. If 'artifact_id' is provided, returns deep metadata, shapes, and protocol hints for matching items. Use this to scout data before retrieval.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "artifact_id": {
+          "type": "string",
+          "description": "Optional: Specific ID or wildcard (e.g., 'EMD*') for deep inspection."
+        },
+        "vault_filename": {
+          "type": "string",
+          "description": "Vault filename (defaults to 'research_session.h5')."
+        }
+      },
+      "required": [
+        "artifact_id",
+        "vault_filename"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  },
+  "ArtifactVaultByPatternToolGv1": {
+    "name": "artifact_by_pattern",
+    "description": "Inspects the HDF5 vault. If 'artifact_id' is provided, it returns deep shapes and metadata for that specific item. If 'artifact_id' is omitted, it returns a high-level summary of all available IDs to save context space.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "artifact_id": {
+          "type": "string",
+          "description": "Optional: Specific ID or prefix (e.g., 'MLSESS_IMFs_Seg_1*') to inspect."
+        },
+        "vault_filename": {
+          "type": "string",
+          "description": "The name of the vault file."
+        }
+      },
+      "required": [
+        "artifact_id",
+        "vault_filename"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  },
+  "SlamFssSifterToolGv1": {
+    "name": "slam_fss_sifter",
+    "description": "High-performance windowed EMD sifter. Loads a signal, applies a Tukey window, performs EMD, and stashes results in the hdf5_physics_archive automatically. Designed to prevent context overflow during massive 4M sample sweeps.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "audio_dict": {
+          "description": "The dictionary returned by audio_handler_tool."
+        },
+        "window_size": {
+          "type": "integer",
+          "description": "Size of the window (e.g., 32768)."
+        },
+        "overlap": {
+          "type": "integer",
+          "description": "Overlap in samples (e.g., 1024)."
+        },
+        "max_imfs": {
+          "type": "integer",
+          "description": "Limit for EMD."
+        },
+        "vault_prefix": {
+          "type": "string",
+          "description": "Prefix for artifact IDs."
+        }
+      },
+      "required": [
+        "audio_dict",
+        "window_size",
+        "overlap",
+        "max_imfs",
+        "vault_prefix"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  },
+  "SlamFssSifterToolGv3": {
+    "name": "slam_fss_sifter",
+    "description": "High-performance windowed EMD sifter. (S)elf-(A)ware of (R)ussian (D)olls: automatically unpacks nested audio dicts. If the signal is too short for multiple windows, it processes a single full-length window.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "audio_dict": {
+          "description": "The dictionary returned by audio_handler_tool or artifact_vault."
+        },
+        "window_size": {
+          "type": "integer",
+          "description": "Size of the window (e.g., 131072)."
+        },
+        "overlap": {
+          "type": "integer",
+          "description": "Overlap in samples (e.g., 4096)."
+        },
+        "max_imfs": {
+          "type": "integer",
+          "description": "Limit for EMD."
+        },
+        "vault_prefix": {
+          "type": "string",
+          "description": "Prefix for artifact IDs."
+        }
+      },
+      "required": [
+        "audio_dict",
+        "window_size",
+        "overlap",
+        "max_imfs",
+        "vault_prefix"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  },
+  "PulseMatchToolV1": {
+    "name": "pulse_match_tool",
+    "description": "High-speed temporal synchronization tool. Finds a pulse template (Time Code) within a long signal using normalized cross-correlation. Returns indices, time-drift (remainder vs Fs), and correlation coefficients.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "signal_id": {
+          "type": "string",
+          "description": "Vault ID of the long signal (DUT output)."
+        },
+        "pulse_id": {
+          "type": "string",
+          "description": "Vault ID of the pulse template (Dirac pair)."
+        },
+        "threshold": {
+          "type": "number",
+          "description": "Correlation threshold (e.g., 0.99) to define a match."
+        },
+        "vault_filename": {
+          "type": "string",
+          "description": "Defaults to 'research_session.h5'."
+        }
+      },
+      "required": [
+        "signal_id",
+        "pulse_id",
+        "threshold",
+        "vault_filename"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "any"
+  },
+  "SyncAlignmentToolV1": {
+    "name": "sync_alignment_tool",
+    "description": "Corrects manual alignment errors between MATLAB reference (L) and ADC capture (R). Finds the precise sample lag and returns a 'Realigned' view of the signal.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "artifact_id": {
+          "type": "string",
+          "description": "The stereo artifact ID (L=Ref, R=DUT)."
+        },
+        "search_window_ms": {
+          "type": "number",
+          "description": "Window to search for alignment (e.g., 5.0 for 5ms)."
+        }
+      },
+      "required": [
+        "artifact_id",
+        "search_window_ms"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "any"
+  },
+  "SyncAlignmentToolV2": {
+    "name": "sync_alignment_tool",
+    "description": "Precision alignment tool. Uses the SECOND Dirac pulse as a Master Anchor to avoid boundary effects at the signal origin. Corrects manual alignment errors between Ref (L) and DUT (R).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "artifact_id": {
+          "type": "string",
+          "description": "Stereo artifact ID (L=Ref, R=DUT)."
+        },
+        "search_window_ms": {
+          "type": "number",
+          "description": "Search radius (e.g., 10.0ms)."
+        }
+      },
+      "required": [
+        "artifact_id",
+        "search_window_ms"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "any"
+  },
+  "SavePlotTool": {
+    "name": "save_plot",
+    "description": "Saves the currently active Matplotlib plot to a file in the secure 'plots' directory.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "output_filename": {
+          "type": "string",
+          "description": "The desired filename for the output PNG."
+        }
+      },
+      "required": [
+        "output_filename"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  },
+  "RVGTool": {
+    "name": "random_variate_generator",
+    "description": "Generates lists of pseudo-random numbers from specified statistical distributions. It uses a high-precision Linear Congruential Generator (LCG) as its foundation. Available distributions: 'uniform', 'normal', 'exponential'.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "distribution": {
+          "type": "string",
+          "description": "The name of the probability distribution to sample from. Supported: 'uniform', 'normal', 'exponential'."
+        },
+        "size": {
+          "type": "integer",
+          "description": "The number of random numbers to generate."
+        },
+        "seed": {
+          "type": "integer",
+          "description": "An integer used to initialize the random number generator. Using the same seed will produce the exact same sequence of n…"
+        },
+        "distribution_params": {
+          "type": "object",
+          "description": "A dictionary of parameters specific to the chosen distribution. For 'normal', use {'mu': <mean>, 'sigma': <standard_devi…"
+        }
+      },
+      "required": [
+        "distribution",
+        "size",
+        "seed",
+        "distribution_params"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "object"
+  },
+  "LCSAnalyzerTool": {
+    "name": "lcs_analyzer",
+    "description": "Calculates the Longest Common Subsequence (LCS) of two input texts. It first normalizes the texts by converting them into a sequence of root words using either lemmatization or stemming. Then, it uses an efficient algorithm to find the longest sequence of words common to both texts.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "text1": {
+          "type": "string",
+          "description": "The first text to be analyzed."
+        },
+        "text2": {
+          "type": "string",
+          "description": "The second text to be analyzed."
+        },
+        "use_lemmatization": {
+          "type": "boolean",
+          "description": "If True (default), uses lemmatization for text normalization. If False, uses stemming."
+        },
+        "parallel": {
+          "type": "boolean",
+          "description": "If True (default), processes the two texts in parallel to speed up normalization."
+        },
+        "return_sequence": {
+          "type": "boolean",
+          "description": "If True (default), returns the actual LCS sequence of words. If False, returns only its length."
+        }
+      },
+      "required": [
+        "text1",
+        "text2",
+        "use_lemmatization",
+        "parallel",
+        "return_sequence"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  },
+  "ListBPFunctionsTool": {
+    "name": "list_bulletproof_functions",
+    "description": "\n    Lists all available standard optimization functions stored in the internal BULLETPROOF library.\n    Use this to discover available test functions (like 'mogadish', 'schwefel', 'cross_in_tray')\n    before running an optimizer.\n    ",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "verbose": {
+          "type": "boolean",
+          "description": "If True (default), returns details (bounds, global min, description). If False, returns only names."
+        }
+      },
+      "required": [
+        "verbose"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  },
+  "GetBPFunctionCodeTool": {
+    "name": "get_bulletproof_function_code",
+    "description": "\n    Retrieves the raw Python source code for a specific function from the BULLETPROOF library.\n    Use this when you need to inspect the code, modify it (e.g., convert 'numpy' logic to 'mpmath'),\n    or pass it to a tool that doesn't support automatic lookup.\n    ",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "function_name": {
+          "type": "string",
+          "description": "The name of the function to retrieve (e.g., 'mogadish', 'rastrigin')."
+        }
+      },
+      "required": [
+        "function_name"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  },
+  "SimAnnealTool": {
+    "name": "simulated_annealing_optimizer",
+    "description": "\n    Finds the global minimum using Simulated Annealing v2.\n    Returns the solution and saves history to a CSV.\n\n    STANDARD FUNCTIONS:\n    You can simply pass the name of a standard function in 'function_code' (e.g., \"ackley\", \"rastrigin\", \"rosenbrock\").\n    This will use pre-validated code and bounds.\n\n    CUSTOM FUNCTIONS:\n    Pass the full Python code definition: \"def objective(x): return ...\".\n\n    CRITICAL:\n    The CSV is saved in a secure area. The Plotter cannot read it directly.\n    You must read the data using `csv_2_tup_tool` and INJECT the lists into the plotting code.\n    ",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "function_code": {
+          "type": "string",
+          "description": "Either the Python code defining 'def objective(x): ...' OR the name of a standard test function (e.g., 'rastrigin')."
+        },
+        "bounds": {
+          "type": "object",
+          "description": "List of tuples for min/max per dimension. Optional if using a standard function name."
+        },
+        "output_filename": {
+          "type": "string",
+          "description": "Filename for history CSV (e.g., 'run1.csv'). Ends in .csv."
+        },
+        "max_iterations": {
+          "type": "integer",
+          "description": "Max iterations. Defaults to 10000."
+        },
+        "initial_temperature": {
+          "type": "number",
+          "description": "Starting temp. Defaults to 1000.0."
+        },
+        "cooling_rate": {
+          "type": "number",
+          "description": "Cooling rate (0 < r < 1). Defaults to 0.95."
+        },
+        "neighbor_type": {
+          "type": "string",
+          "description": "Strategy. Options: 'gaussian', 'uniform', 'jump'. Default: 'gaussian'."
+        },
+        "schedule_type": {
+          "type": "string",
+          "description": "Schedule. Options: 'exponential', 'log', 'cauchy', 'adaptive'."
+        },
+        "restart_stagnation": {
+          "type": "integer",
+          "description": "If provided, restarts/reheats after N iterations without improvement. (e.g., 500)."
+        },
+        "adapt_neighbor": {
+          "type": "boolean",
+          "description": "If True (default), automatically adjusts step size. If False, uses fixed scale."
+        }
+      },
+      "required": [
+        "function_code",
+        "bounds",
+        "output_filename",
+        "max_iterations",
+        "initial_temperature",
+        "cooling_rate",
+        "neighbor_type",
+        "schedule_type",
+        "restart_stagnation",
+        "adapt_neighbor"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  },
+  "SAAnalysisTool": {
+    "name": "sa_analysis_tool",
+    "description": "\n    Advanced analysis of Simulated Annealing history CSV.\n    Detects convergence issues, acceptance problems, stagnation patterns,\n    and gives precise, actionable tuning recommendations (v3 — fully upgraded).\n    Supports all v2+ features: adaptive scaling, restarts, temperature logging.\n    ",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "csv_filename": {
+          "type": "string",
+          "description": "Name of the history CSV file (e.g., 'run1.csv')"
+        }
+      },
+      "required": [
+        "csv_filename"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  },
+  "SimAnnealToolMP": {
+    "name": "simulated_annealing_mp",
+    "description": "\n    High-Precision Simulated Annealing (Arbitrary Precision).\n    Uses 'mpmath' (mp) instead of 'numpy'.\n\n    CRITICAL:\n    1. The 'function_code' MUST be written for mpmath (e.g. `mp.sin`, `mp.sqrt`, `mp.mpf`).\n    2. Use `get_bulletproof_function_code` to retrieve pre-written MP code (e.g. 'mogadish_mp').\n    3. `dps` sets the decimal places (e.g. 50, 100).\n    ",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "function_code": {
+          "type": "string",
+          "description": "Python code defining 'def objective(x): ...' using mpmath."
+        },
+        "bounds": {
+          "type": "string",
+          "description": "List of tuples e.g. '[(-1, 1)]' (passed as string literal)."
+        },
+        "output_filename": {
+          "type": "string",
+          "description": "CSV filename."
+        },
+        "dps": {
+          "type": "integer",
+          "description": "Decimal precision. Default 50."
+        },
+        "max_iterations": {
+          "type": "integer",
+          "description": "Default 1000. Keep low for MP speed."
+        },
+        "initial_temperature": {
+          "type": "string",
+          "description": "Start temp as string (e.g. '1.0')."
+        },
+        "neighbor_scale": {
+          "type": "string",
+          "description": "Step size scale as string (e.g. '0.001')."
+        },
+        "schedule_type": {
+          "type": "string",
+          "description": "Schedule. Options: 'exponential', 'log', 'fast, 'cauchy', 'adaptive', 'lundy', 'aarts', 'vfa', 'quadratic', 'cosine'. De…"
+        }
+      },
+      "required": [
+        "function_code",
+        "bounds",
+        "output_filename",
+        "dps",
+        "max_iterations",
+        "initial_temperature",
+        "neighbor_scale",
+        "schedule_type"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  },
+  "GATool": {
+    "name": "genetic_algorithm_optimizer",
+    "description": "\n    Finds the global minimum using a Real-Coded Genetic Algorithm.\n    Useful for multimodal functions where Simulated Annealing might get stuck.\n\n    OUTPUT:\n    - Returns best solution.\n    - Saves history to CSV (Generation, Best Energy, Diversity).\n\n    CRITICAL:\n    Read CSV using `csv_2_tup_tool` and INJECT data into `python_plotter`.\n    ",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "function_code": {
+          "type": "string",
+          "description": "Python code 'def objective(x): ...' OR a standard function name (e.g., 'rastrigin', 'schwefel')."
+        },
+        "bounds": {
+          "type": "object",
+          "description": "Bounds e.g. [(-5, 5)]. Optional if using a standard function name."
+        },
+        "output_filename": {
+          "type": "string",
+          "description": "CSV filename."
+        },
+        "pop_size": {
+          "type": "integer",
+          "description": "Population size (default 50)."
+        },
+        "generations": {
+          "type": "integer",
+          "description": "Max generations (default 100)."
+        },
+        "mutation_rate": {
+          "type": "number",
+          "description": "Prob of mutation (0.0-1.0)."
+        },
+        "crossover_rate": {
+          "type": "number",
+          "description": "Prob of crossover (0.0-1.0)."
+        }
+      },
+      "required": [
+        "function_code",
+        "bounds",
+        "output_filename",
+        "pop_size",
+        "generations",
+        "mutation_rate",
+        "crossover_rate"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  },
+  "GAAnalysisTool": {
+    "name": "ga_analysis_tool",
+    "description": "\n    Analyzes 'history.csv' from the Genetic Algorithm.\n    Diagnoses 'Premature Convergence' by looking at Population Diversity vs Energy.\n    ",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "csv_filename": {
+          "type": "string",
+          "description": "Name of the history CSV file."
+        }
+      },
+      "required": [
+        "csv_filename"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  },
+  "GAToolMP": {
+    "name": "genetic_algorithm_mp",
+    "description": "\n    High-Precision Genetic Algorithm (Arbitrary Precision).\n    Uses 'mpmath' instead of 'numpy'. Best for resolving 'Planck-scale' features.\n\n    CRITICAL:\n    1. The 'function_code' MUST be written for mpmath (e.g. `mp.sin`).\n    2. Use `get_bulletproof_function_code` or standard names (e.g., 'mogadish_mp').\n    3. `dps` sets the decimal places (e.g. 50, 100).\n    ",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "function_code": {
+          "type": "string",
+          "description": "Python code 'def objective(x): ...' OR standard name."
+        },
+        "bounds": {
+          "type": "object",
+          "description": "Bounds e.g. [(-0.1, 0.1)]. Optional if using standard name."
+        },
+        "output_filename": {
+          "type": "string",
+          "description": "CSV filename."
+        },
+        "dps": {
+          "type": "integer",
+          "description": "Decimal precision. Default 50."
+        },
+        "pop_size": {
+          "type": "integer",
+          "description": "Population size."
+        },
+        "generations": {
+          "type": "integer",
+          "description": "Max generations."
+        },
+        "mutation_rate": {
+          "type": "number",
+          "description": "Prob of mutation."
+        },
+        "crossover_rate": {
+          "type": "number",
+          "description": "Prob of crossover."
+        }
+      },
+      "required": [
+        "function_code",
+        "bounds",
+        "output_filename",
+        "dps",
+        "pop_size",
+        "generations",
+        "mutation_rate",
+        "crossover_rate"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  },
+  "DEToolMP": {
+    "name": "differential_evolution_mp",
+    "description": "High-precision Differential Evolution with Island Model using pure mpmath.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "function_code": {
+          "type": "string",
+          "description": "A string of Python code defining the objective function to be minimized. The function must be named 'objective' and acce…"
+        },
+        "bounds": {
+          "type": "object",
+          "description": "A list of tuples, where each tuple defines the lower and upper bounds for a dimension. Example: [(-5, 5), (-5, 5)]"
+        },
+        "output_filename": {
+          "type": "string",
+          "description": "The base filename for the output CSV and plot files. Must end with .csv."
+        },
+        "dps": {
+          "type": "integer",
+          "description": "Decimal Precision Setting (dps) for mpmath arbitrary-precision calculations. Default is 50."
+        },
+        "num_islands": {
+          "type": "integer",
+          "description": "The number of separate populations (islands) to evolve. Default is 4."
+        },
+        "island_pop_size": {
+          "type": "integer",
+          "description": "The size of the population on each individual island. Default is 40."
+        },
+        "generations": {
+          "type": "integer",
+          "description": "The total number of generations to run the evolution for. Default is 200."
+        },
+        "migration_interval": {
+          "type": "integer",
+          "description": "The number of generations between migration events, where islands exchange individuals. Default is 20."
+        }
+      },
+      "required": [
+        "function_code",
+        "bounds",
+        "output_filename",
+        "dps",
+        "num_islands",
+        "island_pop_size",
+        "generations",
+        "migration_interval"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  },
+  "BOToolGv1_v3_2_0": {
+    "name": "bayesian_optimizer",
+    "description": "\n    Finds the global minimum using Bayesian Optimization (Gaussian Processes).\n    Best for EXPENSIVE functions where you can only afford a few iterations (e.g. < 50).\n\n    OUTPUT:\n    - Returns best solution found.\n    - Saves history to CSV.\n\n    CRITICAL:\n    - Uses `bayesian-optimization` package (v3.2.0+ compatible).\n    - Read CSV using `csv_2_tup_tool` and INJECT data into `python_plotter`.\n    ",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "function_code": {
+          "type": "string",
+          "description": "Python code 'def objective(x): ...' OR a standard function name (e.g., 'rastrigin', 'schwefel')."
+        },
+        "bounds": {
+          "type": "object",
+          "description": "List of tuples e.g. [(-5, 5)]. Optional if using a standard function name."
+        },
+        "output_filename": {
+          "type": "string",
+          "description": "Filename for history CSV (e.g., 'bo_run1.csv'). Ends in .csv."
+        },
+        "n_iter": {
+          "type": "integer",
+          "description": "Total optimization steps (after init). Default 20."
+        },
+        "init_points": {
+          "type": "integer",
+          "description": "Number of random exploration steps before model starts. Default 5."
+        },
+        "acq_type": {
+          "type": "string",
+          "description": "Acquisition: 'ucb' (Upper Confidence Bound), 'ei' (Expected Improvement), or 'poi' (Probability Of Improvement). Default…"
+        },
+        "kappa": {
+          "type": "number",
+          "description": "Exploration weight for UCB. Higher (e.g. 5.0)=Explore; Lower (e.g. 1.0)=Exploit. Default 2.5."
+        },
+        "xi": {
+          "type": "number",
+          "description": "Exploration weight for EI. Default 0.0."
+        }
+      },
+      "required": [
+        "function_code",
+        "bounds",
+        "output_filename",
+        "n_iter",
+        "init_points",
+        "acq_type",
+        "kappa",
+        "xi"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  },
+  "BOAnalysisTool": {
+    "name": "bo_analysis_tool",
+    "description": "\n    Analyzes 'optimization_history.csv' from Bayesian Optimization.\n    Diagnoses Exploration (Variance) vs Exploitation (Convergence).\n    ",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "csv_filename": {
+          "type": "string",
+          "description": "Name of the history CSV file."
+        }
+      },
+      "required": [
+        "csv_filename"
+      ],
+      "additionalProperties": false
+    },
+    "output_type": "string"
+  }
+}

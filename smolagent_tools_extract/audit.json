@@ -1,0 +1,655 @@
+{
+  "SafeOpenTool": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [],
+    "init_params": [
+      "safe_dir"
+    ],
+    "heavy_deps": []
+  },
+  "AudioHandlerTool": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [],
+    "init_params": [
+      "safe_dir_read",
+      "safe_dir_write"
+    ],
+    "heavy_deps": [
+      "numpy"
+    ]
+  },
+  "TFDTool": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [
+      ".get("
+    ],
+    "init_params": [],
+    "heavy_deps": []
+  },
+  "TFDDataTool": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [],
+    "init_params": [
+      "safe_dir"
+    ],
+    "heavy_deps": [
+      "numpy"
+    ]
+  },
+  "LogFreqPlotTool": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [
+      ".get("
+    ],
+    "init_params": [],
+    "heavy_deps": []
+  },
+  "EMDTool": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [
+      ".get("
+    ],
+    "init_params": [],
+    "heavy_deps": []
+  },
+  "EMDToolGv2": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [
+      ".get("
+    ],
+    "init_params": [],
+    "heavy_deps": []
+  },
+  "CreateChromaDBTool": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [
+      ".get(",
+      "api_key"
+    ],
+    "init_params": [
+      "config"
+    ],
+    "heavy_deps": [
+      "mem0"
+    ]
+  },
+  "PopulateChromaDBTool": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [
+      ".get(",
+      "api_key"
+    ],
+    "init_params": [
+      "config",
+      "safe_dir"
+    ],
+    "heavy_deps": [
+      "mem0"
+    ]
+  },
+  "QueryChromaDBTool": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [
+      ".get(",
+      "api_key",
+      "client("
+    ],
+    "init_params": [
+      "config"
+    ],
+    "heavy_deps": [
+      "mem0"
+    ]
+  },
+  "ManageChromaDBTool": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [
+      ".get(",
+      "api_key",
+      "client("
+    ],
+    "init_params": [
+      "config"
+    ],
+    "heavy_deps": [
+      "mem0"
+    ]
+  },
+  "AnalyzeChromaDBTool": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [],
+    "init_params": [],
+    "heavy_deps": [
+      "mem0"
+    ]
+  },
+  "MyGoogleSearchTool": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [
+      "Google",
+      "google",
+      "gsearch"
+    ],
+    "init_params": [
+      "max_results",
+      "engine"
+    ],
+    "heavy_deps": []
+  },
+  "SearXNGSearchTool": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [
+      "Google",
+      "SearXNG",
+      "searXNG",
+      "xngsearch"
+    ],
+    "init_params": [
+      "max_results"
+    ],
+    "heavy_deps": []
+  },
+  "PrologTool": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [],
+    "init_params": [
+      "safe_dir",
+      "reset_on_query",
+      "reset_on_consult",
+      "reset_on_all",
+      "auto_save_file"
+    ],
+    "heavy_deps": [
+      "pyswip"
+    ]
+  },
+  "PDFSplitterToolGv1": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [
+      "httpx"
+    ],
+    "init_params": [
+      "safe_dir"
+    ],
+    "heavy_deps": [
+      "fitz",
+      "pymupdf4llm"
+    ]
+  },
+  "PDFSplitterToolGv2": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [
+      "httpx"
+    ],
+    "init_params": [
+      "safe_dir"
+    ],
+    "heavy_deps": [
+      "fitz",
+      "pymupdf4llm"
+    ]
+  },
+  "PDF2TXTTool": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [
+      "httpx"
+    ],
+    "init_params": [
+      "safe_dir"
+    ],
+    "heavy_deps": [
+      "fitz"
+    ]
+  },
+  "PDFAnalyzerTool": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [],
+    "init_params": [
+      "safe_dir"
+    ],
+    "heavy_deps": [
+      "fitz"
+    ]
+  },
+  "OCR2TXTTool": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [],
+    "init_params": [
+      "safe_dir"
+    ],
+    "heavy_deps": [
+      "pdf2image",
+      "pytesseract"
+    ]
+  },
+  "CSV2TUPTool": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [],
+    "init_params": [
+      "safe_dir"
+    ],
+    "heavy_deps": []
+  },
+  "LLM_Tool": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [
+      ".get(",
+      "api_key",
+      "completion("
+    ],
+    "init_params": [
+      "config",
+      "safe_dir"
+    ],
+    "heavy_deps": []
+  },
+  "Summarization_Tool": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [],
+    "init_params": [
+      "config",
+      "safe_dir"
+    ],
+    "heavy_deps": []
+  },
+  "Translation_Tool": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [],
+    "init_params": [
+      "config",
+      "safe_dir"
+    ],
+    "heavy_deps": []
+  },
+  "MarkdownToPDFTool": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [],
+    "init_params": [
+      "safe_dir"
+    ],
+    "heavy_deps": [
+      "md2pdf"
+    ]
+  },
+  "ArtifactVaultToolGv10": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [],
+    "init_params": [
+      "safe_dir",
+      "vault_filename"
+    ],
+    "heavy_deps": []
+  },
+  "ArtifactVaultToolGv16": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [],
+    "init_params": [
+      "safe_dir",
+      "inspector_tool",
+      "vault_filename"
+    ],
+    "heavy_deps": [
+      "numpy"
+    ]
+  },
+  "ArtifactVaultInspectorToolGv2": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [],
+    "init_params": [
+      "safe_dir",
+      "vault_filename"
+    ],
+    "heavy_deps": []
+  },
+  "ArtifactVaultInspectorToolGv3": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [
+      ".get("
+    ],
+    "init_params": [
+      "safe_dir",
+      "vault_filename"
+    ],
+    "heavy_deps": []
+  },
+  "ArtifactVaultByPatternToolGv1": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [
+      ".get("
+    ],
+    "init_params": [
+      "safe_dir",
+      "vault_filename"
+    ],
+    "heavy_deps": []
+  },
+  "SlamFssSifterToolGv1": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [
+      ".get("
+    ],
+    "init_params": [
+      "emd_tool",
+      "vault_tool"
+    ],
+    "heavy_deps": []
+  },
+  "SlamFssSifterToolGv3": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [
+      ".get("
+    ],
+    "init_params": [
+      "emd_tool",
+      "vault_tool"
+    ],
+    "heavy_deps": []
+  },
+  "PulseMatchToolV1": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [
+      ".get("
+    ],
+    "init_params": [
+      "vault_tool"
+    ],
+    "heavy_deps": [
+      "scipy"
+    ]
+  },
+  "SyncAlignmentToolV1": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [
+      ".get("
+    ],
+    "init_params": [
+      "vault_tool"
+    ],
+    "heavy_deps": []
+  },
+  "SyncAlignmentToolV2": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [
+      ".get("
+    ],
+    "init_params": [
+      "vault_tool"
+    ],
+    "heavy_deps": []
+  },
+  "SavePlotTool": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [],
+    "init_params": [
+      "safe_dir"
+    ],
+    "heavy_deps": []
+  },
+  "RVGTool": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [],
+    "init_params": [],
+    "heavy_deps": []
+  },
+  "LCSAnalyzerTool": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [],
+    "init_params": [],
+    "heavy_deps": [
+      "nltk",
+      "spacy"
+    ]
+  },
+  "ListBPFunctionsTool": {
+    "exec_eval": [],
+    "globals": [
+      "BULLETPROOF_FUNCTIONS"
+    ],
+    "env": [],
+    "network": [
+      ".get("
+    ],
+    "init_params": [],
+    "heavy_deps": []
+  },
+  "GetBPFunctionCodeTool": {
+    "exec_eval": [],
+    "globals": [
+      "BULLETPROOF_FUNCTIONS"
+    ],
+    "env": [],
+    "network": [
+      ".get("
+    ],
+    "init_params": [],
+    "heavy_deps": [
+      "mpmath",
+      "numpy"
+    ]
+  },
+  "SimAnnealTool": {
+    "exec_eval": [
+      "exec"
+    ],
+    "globals": [
+      "csv_field_delim"
+    ],
+    "env": [],
+    "network": [
+      ".get("
+    ],
+    "init_params": [
+      "safe_dir"
+    ],
+    "heavy_deps": []
+  },
+  "SAAnalysisTool": {
+    "exec_eval": [],
+    "globals": [],
+    "env": [],
+    "network": [
+      ".get("
+    ],
+    "init_params": [
+      "safe_dir"
+    ],
+    "heavy_deps": []
+  },
+  "SimAnnealToolMP": {
+    "exec_eval": [
+      "exec"
+    ],
+    "globals": [
+      "csv_field_delim"
+    ],
+    "env": [],
+    "network": [
+      ".get("
+    ],
+    "init_params": [
+      "safe_dir"
+    ],
+    "heavy_deps": [
+      "mpmath",
+      "numpy"
+    ]
+  },
+  "GATool": {
+    "exec_eval": [
+      "exec"
+    ],
+    "globals": [
+      "BULLETPROOF_FUNCTIONS",
+      "csv_field_delim"
+    ],
+    "env": [],
+    "network": [
+      ".get("
+    ],
+    "init_params": [
+      "safe_dir"
+    ],
+    "heavy_deps": []
+  },
+  "GAAnalysisTool": {
+    "exec_eval": [],
+    "globals": [
+      "csv_field_delim"
+    ],
+    "env": [],
+    "network": [
+      ".get("
+    ],
+    "init_params": [
+      "safe_dir"
+    ],
+    "heavy_deps": []
+  },
+  "GAToolMP": {
+    "exec_eval": [
+      "exec"
+    ],
+    "globals": [
+      "BULLETPROOF_FUNCTIONS",
+      "csv_field_delim"
+    ],
+    "env": [],
+    "network": [
+      ".get("
+    ],
+    "init_params": [
+      "safe_dir"
+    ],
+    "heavy_deps": [
+      "mpmath",
+      "numpy"
+    ]
+  },
+  "DEToolMP": {
+    "exec_eval": [
+      "exec",
+      "exec"
+    ],
+    "globals": [
+      "BULLETPROOF_FUNCTIONS"
+    ],
+    "env": [],
+    "network": [
+      ".get("
+    ],
+    "init_params": [
+      "safe_dir"
+    ],
+    "heavy_deps": [
+      "mpmath",
+      "numpy"
+    ]
+  },
+  "BOToolGv1_v3_2_0": {
+    "exec_eval": [
+      "exec"
+    ],
+    "globals": [
+      "BULLETPROOF_FUNCTIONS",
+      "csv_field_delim"
+    ],
+    "env": [],
+    "network": [
+      ".get("
+    ],
+    "init_params": [
+      "safe_dir"
+    ],
+    "heavy_deps": []
+  },
+  "BOAnalysisTool": {
+    "exec_eval": [],
+    "globals": [
+      "csv_field_delim"
+    ],
+    "env": [],
+    "network": [
+      ".get("
+    ],
+    "init_params": [
+      "safe_dir"
+    ],
+    "heavy_deps": []
+  }
+}
