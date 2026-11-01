@@ -4,8 +4,9 @@ The `plot_bulletproof_function` MCP tool (registered in `mcp_server.py`,
 implementation in `bp_plot_tool.py`, n-D registry in `nd_functions.py`)
 produces PNG figures of the benchmark functions in three modes.
 
-PNGs land in `C:\Users\MATTIA\smol_mcp_data\plots\` (override:
-`SMOL_MCP_PLOTS_DIR`) and are delivered inline by the gateway.
+PNGs land in `D:\Source\hermes-dir\smol_mcp_data\plots\` (data root set by
+`SMOL_MCP_DATA_DIR` in the gateway config; override: `SMOL_MCP_PLOTS_DIR`)
+and are delivered inline by the gateway.
 
 ## Modes
 
@@ -44,10 +45,12 @@ e.g. a slice through the point an optimizer returned.
 
 ### 3. `contour` — standalone high-resolution 2-D contour
 
-Filled contours (50 levels) + 20 fine unlabeled lines + 3 labeled line
-contours at the 25/50/75 percentiles of the value range (labeling more
-levels collides on periodic landscapes like rastrigin; the colorbar
-carries the full scale) + the minimum on grid marked with a red star. Best for seeing local minima,
+Filled contours (50 levels by default, raise with `levels`) + fine
+unlabeled lines (20 at the default) + 3 labeled line contours at the
+25/50/75 percentiles of the value range (labeling more levels collides on
+periodic landscapes like rastrigin; the colorbar carries the full scale;
+label precision adapts to the value span) + the minimum on grid marked
+with a red star. Best for seeing local minima,
 ridges and the overall landscape structure that 3-D views hide.
 
 - 2-D: any of the 31 library functions (default `n=2`)
@@ -131,6 +134,7 @@ only.
 | `path_to` | number[] | minimizer | path end (path) |
 | `grid` | int | 101 | resolution, clamped to [11, 401] |
 | `window` | [lo, hi, lo, hi] | full bounds | sub-rectangle for the 2 free dims |
+| `levels` | int | 40 (surface) / 50 (contour) | contour level count; raise in tight zooms to resolve fine texture (fine-line count scales with it) |
 
 ## Notes
 
@@ -142,6 +146,13 @@ only.
   n. 2/4 (±100), schwefel (±500) — the full-domain default is a shape
   overview; use `window` (or a slice/path around the minimizer) for
   detail.
+- **Zooms and texture:** in tight windows the grid is usually far past
+  Nyquist for the function's highest frequency — the visible detail is
+  limited by the *contour level spacing*, not sampling. If a feature's
+  amplitude is below the level spacing it never forms a ring; raise
+  `levels` (e.g. 400) instead of `grid` (mogadish 1e-3 zoom: 401 grid
+  samples its 2¹⁴ band at ~153 pts/period; 50 levels hid the j≥12
+  bands, 400 levels resolve them).
 - **Tests:** `tests/test_bp_plot.py` (42 checks: 18 registry
   cross-validation + 7 surface + 7 slice + 4 path + 6 contour), run with the
   smol-mcp venv python; exit code 0 = all pass.
