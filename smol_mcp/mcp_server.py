@@ -19,6 +19,7 @@ _REAL_STDOUT = sys.stdout
 with contextlib.redirect_stdout(sys.stderr):
     from mcp.server import MCPServer
     import tools_lib
+    import tools_lib_mp
 sys.stdout = _REAL_STDOUT
 
 logging.basicConfig(level=logging.WARNING, stream=sys.stderr)
@@ -35,11 +36,15 @@ log = logging.getLogger("smol_mcp")
 REPO_DIR = os.environ.get(
     "SMOL_MCP_REPO_DIR", r"D:\Source\Repos\MyGSearchSmolagentsEM"
 )
+# Fully self-contained: prefer the vendored engines (./vendor, dps-fixed) over
+# the source repo. REPO_DIR is only a fallback if vendor/ is absent.
+VENDOR_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vendor")
+ENGINE_ROOT = VENDOR_DIR if os.path.isdir(VENDOR_DIR) else REPO_DIR
 
 def _load_engines() -> None:
     import tools_lib as tl
-    if os.path.isdir(REPO_DIR) and REPO_DIR not in sys.path:
-        sys.path.insert(0, REPO_DIR)
+    if ENGINE_ROOT not in sys.path:
+        sys.path.insert(0, ENGINE_ROOT)
     # Simulated Annealing engine (local core.py + neighbors.py)
     from core import SimulatedAnnealing
     import neighbors as sa_neighbors
@@ -57,7 +62,7 @@ def _load_engines() -> None:
     tl.UpperConfidenceBound = UpperConfidenceBound
     tl.ExpectedImprovement = ExpectedImprovement
     tl.ProbabilityOfImprovement = ProbabilityOfImprovement
-    log.info("optimizer engines loaded (repo=%s)", REPO_DIR)
+    log.info("optimizer engines loaded (root=%s)", ENGINE_ROOT)
 
 _load_engines()
 
@@ -85,6 +90,10 @@ def build_tools() -> dict:
     t["ga_analysis_tool"]          = tools_lib.GAAnalysisTool(safe_dir=SAFE_DIR)
     t["bayesian_optimizer"]        = tools_lib.BOToolGv1_v3_2_0(safe_dir=SAFE_DIR)
     t["bo_analysis_tool"]          = tools_lib.BOAnalysisTool(safe_dir=SAFE_DIR)
+    # Phase-2: mpmath arbitrary-precision (MP) optimizers (engines in ./vendor)
+    t["simulated_annealing_mp"]    = tools_lib_mp.SimAnnealToolMP(safe_dir=SAFE_DIR)
+    t["genetic_algorithm_mp"]      = tools_lib_mp.GAToolMP(safe_dir=SAFE_DIR)
+    t["differential_evolution_mp"] = tools_lib_mp.DEToolMP(safe_dir=SAFE_DIR)
     return t
 
 TOOLS = build_tools()
@@ -212,8 +221,9 @@ def create_server() -> MCPServer:
     server = MCPServer("smol-mcp", instructions=(
         "Reusable smolagents tools: PDF/CSV/text extraction, Markdown->PDF, "
         "random variate generation, LCS text analysis, and black-box optimizers "
-        "(simulated annealing, genetic algorithm, Bayesian optimization) with "
-        "history-analysis companions."
+        "(simulated annealing, genetic algorithm, Bayesian optimization, plus "
+        "arbitrary-precision mpmath MP variants of SA/GA and island-model "
+        "differential evolution) with history-analysis companions."
     ))
     for name, tool in TOOLS.items():
         server.tool()(_make_wrapper(tool, name))

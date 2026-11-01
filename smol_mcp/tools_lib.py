@@ -35,6 +35,8 @@ import ast
 import numpy as np
 import math
 from collections import deque
+from bayes_opt import BayesianOptimization
+from bayes_opt.acquisition import UpperConfidenceBound, ExpectedImprovement, ProbabilityOfImprovement
 
 BULLETPROOF_FUNCTIONS = {
     "ackley": {
@@ -309,7 +311,7 @@ def objective(x):
     return -total
 ''',
         "bounds": [[0, 10], [0, 10]],
-        "global_min": -5.147
+        "global_min": -5.1621261599639824  # verified 2026-10: true min of the 5-term sum; the lit. -5.147 belongs to the classical Langermann
     },
     "langermann_mp": {
         "code": '''
@@ -326,7 +328,7 @@ def objective(x):
     return -total
 ''',
         "bounds": '[[0, 10], [0, 10]]',
-        "global_min": -5.147
+        "global_min": -5.1621261599639824  # verified 2026-10: true min of the 5-term sum; the lit. -5.147 belongs to the classical Langermann
     },
     "levy": {
         "code": '''
@@ -654,7 +656,324 @@ def objective(x):
         "bounds": '[[-2.5, 2.5], [-2.5, 2.5]]',
         # "bounds": '[[-10, 10], [-10, 10]]',
         "global_min": 1.28  # Approximate, due to chaotic floor
-    }
+    },
+    "rosenbrock": {
+        "code": """import numpy as np
+
+def objective(x):
+    x_val, y_val = x[0], x[1]
+    return 100 * (y_val - x_val**2) ** 2 + (1 - x_val) ** 2""",
+        "bounds": [[-5.12, 5.12], [-5.12, 5.12]],
+        "global_min": 0.0
+    },
+    "rosenbrock_mp": {
+        "code": """# MP version of function: rosenbrock
+import mpmath as mp
+
+def objective(x):
+    x_val = mp.mpf(x[0])
+    y_val = mp.mpf(x[1])
+    return 100 * (y_val - x_val**2) ** 2 + (1 - x_val) ** 2""",
+        "bounds": '[[-5.12, 5.12], [-5.12, 5.12]]',
+        "global_min": 0.0
+    },
+    "matyas": {
+        "code": """import numpy as np
+
+def objective(x):
+    x_val, y_val = x[0], x[1]
+    return 0.26 * (x_val**2 + y_val**2) - 0.48 * x_val * y_val""",
+        "bounds": [[-10, 10], [-10, 10]],
+        "global_min": 0.0
+    },
+    "matyas_mp": {
+        "code": """# MP version of function: matyas
+import mpmath as mp
+
+def objective(x):
+    x_val = mp.mpf(x[0])
+    y_val = mp.mpf(x[1])
+    return mp.mpf('0.26') * (x_val**2 + y_val**2) - mp.mpf('0.48') * x_val * y_val""",
+        "bounds": '[[-10, 10], [-10, 10]]',
+        "global_min": 0.0
+    },
+    "bent-cigar": {
+        "code": """import numpy as np
+
+def objective(x):
+    x_val, y_val = x[0], x[1]
+    return x_val**2 + 100 * y_val**2""",
+        "bounds": [[-2, 2], [-2, 2]],
+        "global_min": 0.0
+    },
+    "bent-cigar_mp": {
+        "code": """# MP version of function: bent-cigar
+import mpmath as mp
+
+def objective(x):
+    x_val = mp.mpf(x[0])
+    y_val = mp.mpf(x[1])
+    return x_val**2 + 100 * y_val**2""",
+        "bounds": '[[-2, 2], [-2, 2]]',
+        "global_min": 0.0
+    },
+    "ellipsoid": {
+        "code": """import numpy as np
+
+def objective(x):
+    x_val, y_val = x[0], x[1]
+    return 1.0 * x_val**2 + 1e6 * y_val**2""",
+        "bounds": [[-1, 1], [-1, 1]],
+        "global_min": 0.0
+    },
+    "ellipsoid_mp": {
+        "code": """# MP version of function: ellipsoid
+import mpmath as mp
+
+def objective(x):
+    x_val = mp.mpf(x[0])
+    y_val = mp.mpf(x[1])
+    return x_val**2 + mp.mpf(10**6) * y_val**2""",
+        "bounds": '[[-1, 1], [-1, 1]]',
+        "global_min": 0.0
+    },
+    "holder n. 10": {
+        "code": """import numpy as np
+
+def objective(x):
+    x_val, y_val = x[0], x[1]
+    inner = 10 * (x_val * np.sin(x_val) + y_val * np.sin(y_val)) + np.cos(x_val) * np.cos(y_val)
+    return -np.abs(inner) ** 0.1""",
+        "bounds": [[-10, 10], [-10, 10]],
+        "global_min": -1.6594411760657  # measured 2026-10 (grid + L-BFGS-B); classical Holder T=10 on [-10,10]^2
+    },
+    "holder n. 10_mp": {
+        "code": """# MP version of function: holder n. 10
+import mpmath as mp
+
+def objective(x):
+    x_val = mp.mpf(x[0])
+    y_val = mp.mpf(x[1])
+    inner = 10 * (x_val * mp.sin(x_val) + y_val * mp.sin(y_val)) + mp.cos(x_val) * mp.cos(y_val)
+    return -mp.fabs(inner) ** mp.mpf('0.1')""",
+        "bounds": '[[-10, 10], [-10, 10]]',
+        "global_min": -1.6594411760657  # measured 2026-10 (grid + L-BFGS-B); classical Holder T=10 on [-10,10]^2
+    },
+    "holder n. 100": {
+        "code": """import numpy as np
+
+def objective(x):
+    x_val, y_val = x[0], x[1]
+    inner = 10 * (x_val * np.sin(x_val) + y_val * np.sin(y_val)) + np.cos(x_val) * np.cos(y_val)
+    return -np.abs(inner) ** 0.01""",
+        "bounds": [[-10, 10], [-10, 10]],
+        "global_min": -1.05195263598706  # measured 2026-10 (grid + L-BFGS-B); classical Holder T=100 on [-10,10]^2
+    },
+    "holder n. 100_mp": {
+        "code": """# MP version of function: holder n. 100
+import mpmath as mp
+
+def objective(x):
+    x_val = mp.mpf(x[0])
+    y_val = mp.mpf(x[1])
+    inner = 10 * (x_val * mp.sin(x_val) + y_val * mp.sin(y_val)) + mp.cos(x_val) * mp.cos(y_val)
+    return -mp.fabs(inner) ** mp.mpf('0.01')""",
+        "bounds": '[[-10, 10], [-10, 10]]',
+        "global_min": -1.05195263598706  # measured 2026-10 (grid + L-BFGS-B); classical Holder T=100 on [-10,10]^2
+    },
+    "easom": {
+        "code": """import numpy as np
+
+def objective(x):
+    x_val, y_val = x[0], x[1]
+    return -np.cos(x_val) * np.cos(y_val) * np.exp(-((x_val - np.pi) ** 2 + (y_val - np.pi) ** 2))""",
+        "bounds": [[-100, 100], [-100, 100]],
+        "global_min": -1.0
+    },
+    "easom_mp": {
+        "code": """# MP version of function: easom
+import mpmath as mp
+
+def objective(x):
+    x_val = mp.mpf(x[0])
+    y_val = mp.mpf(x[1])
+    return -mp.cos(x_val) * mp.cos(y_val) * mp.exp(-((x_val - mp.pi) ** 2 + (y_val - mp.pi) ** 2))""",
+        "bounds": '[[-100, 100], [-100, 100]]',
+        "global_min": -1.0
+    },
+    "himmelblau": {
+        "code": """import numpy as np
+
+def objective(x):
+    x_val, y_val = x[0], x[1]
+    return (x_val**2 + y_val - 11) ** 2 + (x_val + y_val**2 - 7) ** 2""",
+        "bounds": [[-5, 5], [-5, 5]],
+        "global_min": 0.0
+    },
+    "himmelblau_mp": {
+        "code": """# MP version of function: himmelblau
+import mpmath as mp
+
+def objective(x):
+    x_val = mp.mpf(x[0])
+    y_val = mp.mpf(x[1])
+    return (x_val**2 + y_val - 11) ** 2 + (x_val + y_val**2 - 7) ** 2""",
+        "bounds": '[[-5, 5], [-5, 5]]',
+        "global_min": 0.0
+    },
+    "six-hump camel": {
+        "code": """import numpy as np
+
+def objective(x):
+    x_val, y_val = x[0], x[1]
+    return ((4 - 2.1 * x_val**2 + x_val**4 / 3) * x_val**2
+            + x_val * y_val
+            + (-4 + 4 * y_val**2) * y_val**2)""",
+        "bounds": [[-3, 3], [-2, 2]],
+        "global_min": -1.03162845349  # measured 2026-10 (grid + multi-start)
+    },
+    "six-hump camel_mp": {
+        "code": """# MP version of function: six-hump camel
+import mpmath as mp
+
+def objective(x):
+    x_val = mp.mpf(x[0])
+    y_val = mp.mpf(x[1])
+    return ((4 - mp.mpf('2.1') * x_val**2 + x_val**4 / 3) * x_val**2
+            + x_val * y_val
+            + (-4 + 4 * y_val**2) * y_val**2)""",
+        "bounds": '[[-3, 3], [-2, 2]]',
+        "global_min": -1.03162845349  # measured 2026-10 (grid + multi-start)
+    },
+    "goldstein-price": {
+        "code": """import numpy as np
+
+def objective(x):
+    x_val, y_val = x[0], x[1]
+    t1 = 1 + (x_val + y_val + 1) ** 2 * (19 - 14 * x_val + 3 * x_val**2 - 14 * y_val + 6 * x_val * y_val + 3 * y_val**2)
+    t2 = 30 + (2 * x_val - 3 * y_val) ** 2 * (18 - 32 * x_val + 12 * x_val**2 + 48 * y_val - 36 * x_val * y_val + 27 * y_val**2)
+    return t1 * t2""",
+        "bounds": [[-2, 2], [-2, 2]],
+        "global_min": 3.0
+    },
+    "goldstein-price_mp": {
+        "code": """# MP version of function: goldstein-price
+import mpmath as mp
+
+def objective(x):
+    x_val = mp.mpf(x[0])
+    y_val = mp.mpf(x[1])
+    t1 = 1 + (x_val + y_val + 1) ** 2 * (19 - 14 * x_val + 3 * x_val**2 - 14 * y_val + 6 * x_val * y_val + 3 * y_val**2)
+    t2 = 30 + (2 * x_val - 3 * y_val) ** 2 * (18 - 32 * x_val + 12 * x_val**2 + 48 * y_val - 36 * x_val * y_val + 27 * y_val**2)
+    return t1 * t2""",
+        "bounds": '[[-2, 2], [-2, 2]]',
+        "global_min": 3.0
+    },
+    "styblinski-tang": {
+        "code": """import numpy as np
+
+def objective(x):
+    x_val, y_val = x[0], x[1]
+    return 0.5 * (x_val**4 - 16 * x_val**2 + 5 * x_val) + 0.5 * (y_val**4 - 16 * y_val**2 + 5 * y_val)""",
+        "bounds": [[-5, 5], [-5, 5]],
+        "global_min": -78.3323314075  # measured 2026-10 (grid + multi-start); standard coeffs 0.5*sum(x^4 - 16x^2 + 5x)
+    },
+    "styblinski-tang_mp": {
+        "code": """# MP version of function: styblinski-tang
+import mpmath as mp
+
+def objective(x):
+    x_val = mp.mpf(x[0])
+    y_val = mp.mpf(x[1])
+    half = mp.mpf('0.5')
+    return half * (x_val**4 - 16 * x_val**2 + 5 * x_val) + half * (y_val**4 - 16 * y_val**2 + 5 * y_val)""",
+        "bounds": '[[-5, 5], [-5, 5]]',
+        "global_min": -78.3323314075  # measured 2026-10 (grid + multi-start); standard coeffs 0.5*sum(x^4 - 16x^2 + 5x)
+    },
+    "zakharov": {
+        "code": """import numpy as np
+
+def objective(x):
+    x_val, y_val = x[0], x[1]
+    s = 0.5 * x_val + 1.0 * y_val
+    return x_val**2 + y_val**2 + s**2 + s**4""",
+        "bounds": [[-5, 5], [-5, 5]],
+        "global_min": 0.0
+    },
+    "zakharov_mp": {
+        "code": """# MP version of function: zakharov
+import mpmath as mp
+
+def objective(x):
+    x_val = mp.mpf(x[0])
+    y_val = mp.mpf(x[1])
+    s = mp.mpf('0.5') * x_val + y_val
+    return x_val**2 + y_val**2 + s**2 + s**4""",
+        "bounds": '[[-5, 5], [-5, 5]]',
+        "global_min": 0.0
+    },
+    "penalty (kornkorn)": {
+        "code": """import numpy as np
+
+def objective(x):
+    x_val, y_val = x[0], x[1]
+    return (x_val**2 + y_val**2 - 10) ** 2""",
+        "bounds": [[-4, 4], [-4, 4]],
+        "global_min": 0.0
+    },
+    "penalty (kornkorn)_mp": {
+        "code": """# MP version of function: penalty (kornkorn)
+import mpmath as mp
+
+def objective(x):
+    x_val = mp.mpf(x[0])
+    y_val = mp.mpf(x[1])
+    return (x_val**2 + y_val**2 - 10) ** 2""",
+        "bounds": '[[-4, 4], [-4, 4]]',
+        "global_min": 0.0
+    },
+    "plateau": {
+        "code": """import numpy as np
+
+def objective(x):
+    x_val, y_val = x[0], x[1]
+    return np.round(x_val) ** 2 + np.round(y_val) ** 2""",
+        "bounds": [[-5, 5], [-5, 5]],
+        "global_min": 0.0
+    },
+    "plateau_mp": {
+        "code": """# MP version of function: plateau
+import mpmath as mp
+
+def objective(x):
+    x_val = mp.mpf(x[0])
+    y_val = mp.mpf(x[1])
+    # Python's built-in round() on mpf is banker's rounding, identical to
+    # np.round (mpmath exposes no module/context-level round function)
+    return round(x_val) ** 2 + round(y_val) ** 2""",
+        "bounds": '[[-5, 5], [-5, 5]]',
+        "global_min": 0.0
+    },
+    "dejong step": {
+        "code": """import numpy as np
+
+def objective(x):
+    x_val, y_val = x[0], x[1]
+    return np.floor(np.abs(x_val) + 1) + np.floor(np.abs(y_val) + 1)""",
+        "bounds": [[-5, 5], [-5, 5]],
+        "global_min": 2.0
+    },
+    "dejong step_mp": {
+        "code": """# MP version of function: dejong step
+import mpmath as mp
+
+def objective(x):
+    x_val = mp.mpf(x[0])
+    y_val = mp.mpf(x[1])
+    return mp.floor(mp.fabs(x_val) + 1) + mp.floor(mp.fabs(y_val) + 1)""",
+        "bounds": '[[-5, 5], [-5, 5]]',
+        "global_min": 2.0
+    },
 }
 
 csv_field_delim = ';'
@@ -1709,8 +2028,17 @@ class SAAnalysisTool(Tool):
             # Parse required columns
             iters = np.array([int(r['iteration']) for r in rows])
             energy = np.array([float(r['energy']) for r in rows])
-            best_energy = np.array([float(r['best_so_far']) for r in rows])  # recommended to log
-            accepted = np.array([int(r.get('accepted', 1)) for r in rows])  # fallback 1
+            # best_so_far is logged by the numpy SA tool; the MP variant only
+            # logs per-iteration energy, so derive the running best from it.
+            if rows[0].get('best_so_far') is not None:
+                best_energy = np.array([float(r['best_so_far']) for r in rows])
+            else:
+                best_energy = np.minimum.accumulate(energy)
+            # 'accepted' is only logged by the numpy SA tool; without it the
+            # acceptance section is skipped (MP variant).
+            has_accepted = rows[0].get('accepted') is not None
+            accepted = (np.array([int(r['accepted']) for r in rows])
+                        if has_accepted else None)
             temperature = np.array([float(r.get('temperature', 1.0)) for r in rows])
             scale = np.array([float(r.get('neighbor_scale', 0.1)) for r in rows])
 
@@ -1732,24 +2060,33 @@ class SAAnalysisTool(Tool):
             ]
 
             # 1. Acceptance Rate Analysis
-            accept_rate = accepted.mean() * 100
-            late_accept = accepted[-max(100, n//10):].mean() * 100
-            report += [
-                "ACCEPTANCE RATE",
-                "-"*30,
-                f"Overall acceptance     : {accept_rate:.1f}%",
-                f"Late-phase acceptance  : {late_accept:.1f}%",
-            ]
-            if accept_rate < 15:
-                report += ["Too low! Steps too small or temperature too low early."]
-                report += ["→ Enable or keep adapt_neighbor=True"]
-                report += ["→ Try higher initial_temperature"]
-            elif accept_rate > 70:
-                report += ["Too high! Too random, wasting evaluations."]
-                report += ["→ Lower initial_temperature"]
-                report += ["→ Use faster cooling (e.g. cooling_rate=0.90)"]
+            if accepted is not None:
+                accept_rate = accepted.mean() * 100
+                late_accept = accepted[-max(100, n//10):].mean() * 100
+                report += [
+                    "ACCEPTANCE RATE",
+                    "-"*30,
+                    f"Overall acceptance     : {accept_rate:.1f}%",
+                    f"Late-phase acceptance  : {late_accept:.1f}%",
+                ]
+                if accept_rate < 15:
+                    report += ["Too low! Steps too small or temperature too low early."]
+                    report += ["→ Enable or keep adapt_neighbor=True"]
+                    report += ["→ Try higher initial_temperature"]
+                elif accept_rate > 70:
+                    report += ["Too high! Too random, wasting evaluations."]
+                    report += ["→ Lower initial_temperature"]
+                    report += ["→ Use faster cooling (e.g. cooling_rate=0.90)"]
+                else:
+                    report += ["Healthy range (15–70%). Good exploration/exploitation balance."]
             else:
-                report += ["Healthy range (15–70%). Good exploration/exploitation balance."]
+                accept_rate = None
+                late_accept = None
+                report += [
+                    "ACCEPTANCE RATE",
+                    "-"*30,
+                    "Not logged by this engine (MP variant) - section skipped.",
+                ]
 
             # 2. Convergence & Quenching
             report += ["", "CONVERGENCE BEHAVIOR", "-"*30]
@@ -1790,7 +2127,9 @@ class SAAnalysisTool(Tool):
             # 4. Adaptive Scaling Effectiveness
             if np.std(scale) > 1e-8:  # scale actually changed
                 report += ["", "ADAPTIVE SCALING", "-"*30]
-                if 0.3 < late_accept < 0.6:
+                if late_accept is None:
+                    report += ["Scale varied, but acceptance not logged - effectiveness unknown."]
+                elif 30 < late_accept < 60:
                     report += ["Adaptive scaling worked perfectly!"]
                     report += [f"Final scale {scale[-1]:.2e} is a good starting point for future runs."]
                 else:
@@ -1806,7 +2145,7 @@ class SAAnalysisTool(Tool):
                 recs += ["Use schedule_type='log' or cooling_rate=0.995+"]
             if stagnant_periods:
                 recs += [f"Set restart_stagnation={max(300, longest[1]//2)}"]
-            if accept_rate > 70:
+            if accept_rate is not None and accept_rate > 70:
                 recs += ["Lower initial_temperature by 50%"]
             if n < 20000 and conv_pct > 80:
                 recs += ["Increase max_iterations to 30k–50k"]
@@ -2162,6 +2501,11 @@ class BOToolGv1_v3_2_0(Tool):
             "type": "number",
             "description": "Exploration weight for EI. Default 0.0.",
             "nullable": True
+        },
+        "seed": {
+            "type": "integer",
+            "description": "Random seed for initial-point sampling. Default 1 (reproducible). Pass a different value, or null for a non-deterministic run (multi-start).",
+            "nullable": True
         }
     }
     output_type = "string"
@@ -2173,7 +2517,8 @@ class BOToolGv1_v3_2_0(Tool):
 
     def forward(self, function_code: str, bounds, output_filename: str,
                 n_iter: int = 20, init_points: int = 5,
-                acq_type: str = 'ucb', kappa: float = 2.5, xi: float = 0.0):
+                acq_type: str = 'ucb', kappa: float = 2.5, xi: float = 0.0,
+                seed: int = 1):
 
         try:
             # 2. Secure File Path
@@ -2268,7 +2613,7 @@ class BOToolGv1_v3_2_0(Tool):
             optimizer = BayesianOptimization(
                 f=bo_wrapper,
                 pbounds=pbounds,
-                random_state=1,
+                random_state=seed,
                 verbose=0,
                 allow_duplicate_points=True,
                 acquisition_function=utility
@@ -2422,9 +2767,12 @@ class BOAnalysisTool(Tool):
             else:
                 report += ["✅ GOOD EXPLORATION: Algorithm searched wide area."]
 
-            if improvement_late <= 0 and n > 10:
-                report += ["⚠️ STALLED: No improvement in second half."]
-                report += ["   -> HINT: You might be exploiting too much. Switch to 'simulated_annealing' to fine-tune."]
+            if improvement_late <= 0:
+                if n > 10:
+                    report += ["⚠️ STALLED: No improvement in second half."]
+                    report += ["   -> HINT: You might be exploiting too much. Switch to 'simulated_annealing' to fine-tune."]
+                else:
+                    report += ["ℹ️ Convergence check skipped: not enough samples (n<=10)."]
             else:
                 report += [f"✅ LEARNING: Improved by {improvement_late:.4f} in later stages."]
 
