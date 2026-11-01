@@ -20,6 +20,7 @@ with contextlib.redirect_stdout(sys.stderr):
     from mcp.server import MCPServer
     import tools_lib
     import tools_lib_mp
+    import bp_plot_tool
 sys.stdout = _REAL_STDOUT
 
 logging.basicConfig(level=logging.WARNING, stream=sys.stderr)
@@ -94,6 +95,8 @@ def build_tools() -> dict:
     t["simulated_annealing_mp"]    = tools_lib_mp.SimAnnealToolMP(safe_dir=SAFE_DIR)
     t["genetic_algorithm_mp"]      = tools_lib_mp.GAToolMP(safe_dir=SAFE_DIR)
     t["differential_evolution_mp"] = tools_lib_mp.DEToolMP(safe_dir=SAFE_DIR)
+    # Function plotting (surface / slice / path) -> PLOTS_DIR
+    t["plot_bulletproof_function"] = bp_plot_tool.BPPlotTool(safe_dir=PLOTS_DIR)
     return t
 
 TOOLS = build_tools()
