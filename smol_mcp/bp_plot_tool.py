@@ -78,6 +78,8 @@ class BPPlotTool(Tool):
                  "description": "Grid resolution (surface/slice/contour: per axis; path: samples). Default 101."},
         "window": {"type": "array", "nullable": True,
                    "description": "[lo1, hi1, lo2, hi2] sub-rectangle for the 2 free dims. Default: full bounds."},
+        "levels": {"type": "integer", "nullable": True,
+                   "description": "Contour level count (surface/contour). Raise it in tight zooms to resolve fine texture below the default level spacing. Default: 40 (surface), 50 (contour)."},
     }
     output_type = "string"
 
@@ -152,7 +154,7 @@ class BPPlotTool(Tool):
 
     # ---------- 2-panel figure (surface / slice) ----------
     def _two_panel(self, name, entry, kind, n, dims, grid, out_png,
-                   X, Y, Z, xlabel, ylabel, base_note):
+                   X, Y, Z, xlabel, ylabel, base_note, levels=None):
         plt = _lazy_plt()
         fig = plt.figure(figsize=(12, 5))
         ax = fig.add_subplot(1, 2, 1, projection="3d")
@@ -165,7 +167,7 @@ class BPPlotTool(Tool):
         else:
             ax.set_title(f"{name} — surface")
         ax2 = fig.add_subplot(1, 2, 2)
-        cs = ax2.contourf(X, Y, Z, levels=40, cmap="viridis")
+        cs = ax2.contourf(X, Y, Z, levels=max(8, int(levels or 40)), cmap="viridis")
         fig.colorbar(cs, ax=ax2, label="f(x, y)")
         if kind == "slice":
             ax2.set_title(f"contour — {base_note}" if base_note else f"{name} — contour")
@@ -180,12 +182,14 @@ class BPPlotTool(Tool):
 
     # ---------- contour (standalone high-resolution 2-D contour) ----------
     def _contour(self, name, entry, kind, n, dims, grid, out_png,
-                 X, Y, Z, xlabel, ylabel, base_note):
+                 X, Y, Z, xlabel, ylabel, base_note, levels=None):
         plt = _lazy_plt()
         fig, ax = plt.subplots(figsize=(8, 7))
-        cs = ax.contourf(X, Y, Z, levels=50, cmap="viridis")
+        nlev = max(8, int(levels or 50))
+        cs = ax.contourf(X, Y, Z, levels=nlev, cmap="viridis")
         # Fine unlabeled lines for detail + a sparse labeled set for readability
-        ax.contour(X, Y, Z, levels=20, colors="k", linewidths=0.4, alpha=0.5)
+        ax.contour(X, Y, Z, levels=max(4, nlev * 20 // 50),
+                   colors="k", linewidths=0.4 if nlev <= 100 else 0.25, alpha=0.5)
         # Label only the 25/50/75-percentile levels: on periodic landscapes
         # (rastrigin: 121 local minima) more labeled levels mean hundreds of
         # colliding inline labels; the colorbar carries the full value scale.
@@ -194,7 +198,16 @@ class BPPlotTool(Tool):
                         if zmax > zmin else [zmin])
         ct = ax.contour(X, Y, Z, levels=label_levels, colors="k",
                         linewidths=0.9, alpha=0.85)
-        ax.clabel(ct, fmt="%.4g", fontsize=9)
+        # Adaptive label precision: on tight zooms the value span can be far
+        # below the 4th significant digit, so %.4g would print duplicate
+        # labels (e.g. 1.2794/1.2798/1.2803 all -> "1.28"). Use as many
+        # decimals as needed to distinguish the three labeled levels.
+        if zmax > zmin:
+            nd = max(1, int(math.ceil(-math.log10((zmax - zmin) / 3.0))))
+            fmt = f"%.{nd}f"
+        else:
+            fmt = "%.4g"
+        ax.clabel(ct, fmt=fmt, fontsize=9)
         fig.colorbar(cs, ax=ax, label="f")
         r, c = divmod(int(Z.argmin()), grid)
         ax.plot([X[r, c]], [Y[r, c]], "r*", ms=14, zorder=5,
@@ -245,7 +258,8 @@ class BPPlotTool(Tool):
 
     def forward(self, function: str, output_filename: str = None, mode: str = "surface",
                 n: int = 2, dims=None, base_point=None, base_is_minimizer=False,
-                path_from=None, path_to=None, grid: int = 101, window=None):
+                path_from=None, path_to=None, grid: int = 101, window=None,
+                levels: int = None):
         mode = (mode or "surface").lower()
         if mode not in ("surface", "slice", "contour", "path"):
             return f"Error: unknown mode '{mode}' (use surface | slice | contour | path)."
@@ -273,10 +287,12 @@ class BPPlotTool(Tool):
                     return err
                 if mode == "contour":
                     detail = self._contour(function, entry, kind, n or 2, dims or [0, 1],
-                                           grid, out_png, X, Y, Z, xlabel, ylabel, base_note)
+                                           grid, out_png, X, Y, Z, xlabel, ylabel, base_note,
+                                           levels)
                 else:
                     detail = self._two_panel(function, entry, kind, n or 2, dims or [0, 1],
-                                             grid, out_png, X, Y, Z, xlabel, ylabel, base_note)
+                                             grid, out_png, X, Y, Z, xlabel, ylabel, base_note,
+                                             levels)
             return (f"Plot saved to: {out_png}\nmode={mode} function={function} "
                     f"grid={grid}\n{detail}")
         except Exception as e:
