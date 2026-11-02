@@ -1,0 +1,31 @@
+--- a/model_tools.py
++++ b/model_tools.py
+@@ -88,6 +88,19 @@
+         asyncio.set_event_loop(loop)
+         _worker_thread_local.loop = loop
+     return loop
++
++
++def _async_bridge_timeout_s() -> Optional[float]:
++    """Wall-clock cap (s) for bridging an async tool handler into a worker thread.
++
++    ``timeouts.async_bridge`` (config.yaml) > ``HERMES_ASYNC_TOOL_TIMEOUT_S`` (env) >
++    300 s default; ``0``/negative = no cap (``future.result`` waits indefinitely).
++    The previous hardcoded 300 s killed legitimately slow tools - e.g. vision on a
++    local model that needs minutes per image - with a bare ``TimeoutError`` before the
++    underlying HTTP call (which has its own, much larger, configurable timeout) finished.
++    """
++    from agent.deadline import resolve_timeout
++    return resolve_timeout("async_bridge", default=300.0, env_var="HERMES_ASYNC_TOOL_TIMEOUT_S")
+ 
+ 
+ def _run_async(coro):
+@@ -127,7 +140,7 @@
+         from tools.thread_context import propagate_context_to_thread
+         future = pool.submit(propagate_context_to_thread(_run_in_worker))
+         try:
+-            return future.result(timeout=300)
++            return future.result(timeout=_async_bridge_timeout_s())
+         except concurrent.futures.TimeoutError:
+             # Cancel inside the worker's own loop so the thread can wind down.
+             if loop_ready.wait(timeout=1.0) and worker_loop is not None:
